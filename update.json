@@ -2,6 +2,6 @@
   "versionCode": 4,
   "versionName": "1.3.0",
   "apkUrl": "https://github.com/theklinkz-bot/pixel-gba/releases/download/v1.3.0/PixelGBA-1.3.0.apk",
-  "sha256": "",
+  "sha256": "376d6aaee0f27f610a59b7944ea5afdc54dacf5970a388aff431bf1c13fccc1e",
   "changelog": "Portrait translucent shell colors, overlay controls in full-screen mode, five speed levels with audio, and landscape UI preserved."
 }
