@@ -32,7 +32,8 @@ jobs:
         run: cp app/build/outputs/apk/release/app-release.apk "PixelGBA-${GITHUB_REF_NAME#v}.apk"
       - name: Publish GitHub Release
         env: { GH_TOKEN: '${{ github.token }}' }
-        run: gh release create "${GITHUB_REF_NAME}" "PixelGBA-${GITHUB_REF_NAME#v}.apk" --title "Pixel GBA ${GITHUB_REF_NAME#v}" --generate-notes
+        run: |
+          gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1 || gh release create "${GITHUB_REF_NAME}" "PixelGBA-${GITHUB_REF_NAME#v}.apk" --title "Pixel GBA ${GITHUB_REF_NAME#v}" --generate-notes
       - name: Upload APK to Google Drive
         env:
           GOOGLE_DRIVE_CLIENT_ID: ${{ secrets.GOOGLE_DRIVE_CLIENT_ID }}
