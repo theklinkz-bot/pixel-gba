@@ -2,6 +2,6 @@
   "versionCode": 9,
   "versionName": "1.3.5",
   "apkUrl": "https://github.com/theklinkz-bot/pixel-gba/releases/download/v1.3.5/PixelGBA-1.3.5.apk",
-  "sha256": "",
+  "sha256": "bcade1c696c3fbe1feeb4841170c45393128a13689c4f08aed203abbc590b60b",
   "changelog": "Landscape screen adjustment now applies center dragging immediately and allows reaching the top display area."
 }
