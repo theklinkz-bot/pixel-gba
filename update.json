@@ -1,7 +1,7 @@
 {
-  "versionCode": 7,
-  "versionName": "1.3.3",
-  "apkUrl": "https://github.com/theklinkz-bot/pixel-gba/releases/download/v1.3.3/PixelGBA-1.3.3.apk",
-  "sha256": "5f649e98a599d538353274fa0dd751c7b0f5746931e566ab41e3e8a4279818ba",
-  "changelog": "Landscape screen resize and reposition moved to MENU > ADJUST SCREEN; resize can use the full display including the top toolbar while preserving 3:2 aspect."
+  "versionCode": 8,
+  "versionName": "1.3.4",
+  "apkUrl": "https://github.com/theklinkz-bot/pixel-gba/releases/download/v1.3.4/PixelGBA-1.3.4.apk",
+  "sha256": "",
+  "changelog": "About screen now displays the installed app version dynamically."
 }

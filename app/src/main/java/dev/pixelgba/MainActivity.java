@@ -52,6 +52,7 @@ public class MainActivity extends Activity {
     TextView text(String s, int size, int color) {
         TextView t=new TextView(this); t.setText(s); t.setTextSize(size); t.setTextColor(color); t.setTypeface(Typeface.MONOSPACE); t.setPadding(dp(4),dp(7),dp(4),dp(7)); return t;
     }
+    String appVersion(){try{return getPackageManager().getPackageInfo(getPackageName(),0).versionName;}catch(Exception e){return "?";}}
     GradientDrawable box(int color) { GradientDrawable b=new GradientDrawable(); b.setColor(color); b.setStroke(dp(1),0xff42535b); return b; }
     Button button(String label, Runnable action) {
         Button b=new Button(this); b.setText(label); b.setAllCaps(false); b.setTextColor(INK); b.setTypeface(Typeface.MONOSPACE,Typeface.BOLD); b.setBackground(box(PANEL)); b.setPadding(dp(12),dp(10),dp(12),dp(10)); b.setOnClickListener(v->action.run());
@@ -86,7 +87,7 @@ public class MainActivity extends Activity {
         root.addView(button("▶  PIXEL LAB  /  ทดลองปุ่มและเซฟ",()->{try(InputStream in=getAssets().open("pixel-lab.gba")){File f=storeRom(in,"Pixel Lab • Homebrew");launch(f);}catch(Exception e){error(e);}}));
         root.addView(button("SETTINGS  /  ภาพและเสียง",this::settings));
         root.addView(button("↻  CHECK FOR UPDATES  /  ตรวจ OTA",()->updates.check(true)));
-        root.addView(button("ABOUT  /  วิธีใช้งาน",()-> new AlertDialog.Builder(this).setTitle("PIXEL GBA 1.3.0").setMessage("นำเข้าไฟล์ .gba หรือ ZIP ที่มีเกมเดียว\nระหว่างเล่น แตะ MENU เพื่อใส่สูตร ปรับภาพ จัดปุ่ม และจัดการเซฟ\nจอย: D-pad / left stick, A/B, L/R, Start/Select\nKeyboard: arrows, Z/X, A/S, Enter/Space\n\nPixel Lab: เลื่อนสี่เหลี่ยมด้วย D-pad; A/B เปลี่ยนสี; L/R เปลี่ยนเสียง\n\nPowered by mGBA 0.10.5 (MPL 2.0). Source: github.com/mgba-emu/mgba/tree/0.10.5\nมี license ใน APK; source และวิธี build อยู่ในโปรเจกต์\nไม่รวมเกมเชิงพาณิชย์").setPositiveButton("OK",null).show()));
+        root.addView(button("ABOUT  /  วิธีใช้งาน",()-> new AlertDialog.Builder(this).setTitle("PIXEL GBA "+appVersion()).setMessage("นำเข้าไฟล์ .gba หรือ ZIP ที่มีเกมเดียว\nระหว่างเล่น แตะ MENU เพื่อใส่สูตร ปรับภาพ จัดปุ่ม และจัดการเซฟ\nจอย: D-pad / left stick, A/B, L/R, Start/Select\nKeyboard: arrows, Z/X, A/S, Enter/Space\n\nPixel Lab: เลื่อนสี่เหลี่ยมด้วย D-pad; A/B เปลี่ยนสี; L/R เปลี่ยนเสียง\n\nPowered by mGBA 0.10.5 (MPL 2.0). Source: github.com/mgba-emu/mgba/tree/0.10.5\nมี license ใน APK; source และวิธี build อยู่ในโปรเจกต์\nไม่รวมเกมเชิงพาณิชย์").setPositiveButton("OK",null).show()));
         root.addView(text("● OFFLINE READY      mGBA / 0.10.5",11,MUTED));
     }
     void importRom() { Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE); startActivityForResult(i,10); }
