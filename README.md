@@ -11,6 +11,14 @@
 
 ไม่มี ROM เกมเชิงพาณิชย์หรือ BIOS ของ Nintendo รวมอยู่ในแอป
 
+## OTA ผ่าน GitHub Releases
+
+รุ่นที่ติดตั้งจะมีปุ่ม **CHECK FOR UPDATES** ในคลังเกม แอปอ่าน `update.json` จาก branch `main` ตรวจ `versionCode` แล้วดาวน์โหลด APK จาก GitHub Releases ผ่าน HTTPS ก่อนเปิดตัวติดตั้ง Android ให้ผู้ใช้กดยืนยันเอง เซฟและการตั้งค่าอยู่ในพื้นที่ข้อมูลแอปจึงไม่ถูกลบ การติดตั้งทับต้องใช้ใบรับรองเดียวกันทุกครั้ง
+
+ก่อนปล่อย OTA ครั้งแรก ให้สร้าง keystore ถาวรเก็บไว้นอก repository แล้วเพิ่ม GitHub Actions secrets เหล่านี้: `PIXEL_GBA_KEYSTORE_B64`, `PIXEL_GBA_KEYSTORE_PASSWORD`, `PIXEL_GBA_KEY_ALIAS`, `PIXEL_GBA_KEY_PASSWORD` จากนั้น push tag เช่น `v1.2.0` workflow จะ build signed APK และแนบชื่อ `PixelGBA-1.2.0.apk` ใน Release ห้ามเปลี่ยน keystore หลังแจก APK ให้ผู้ใช้แล้ว
+
+หลังปล่อยรุ่นใหม่ แก้ `update.json` ใน branch `main` ให้ `versionCode`, `versionName`, `apkUrl` และ `changelog` ตรงกับ Release ล่าสุด แล้ว commit ขึ้น GitHub ผู้ใช้จะเห็นอัปเดตเมื่อกดตรวจ OTA ครั้งถัดไป การให้ผู้ใช้ติดตั้ง APK รุ่น debug แล้วพยายาม OTA เป็น release จะถูก Android ปฏิเสธเพราะใบรับรองต่างกัน; แจก debug ใช้สำหรับทดสอบเท่านั้น
+
 ## อัปเดต 1.1
 
 แถบด้านบนหน้าเล่นมีไอคอน ▶1× ถึง ▶5× ให้แตะเปลี่ยนความเร็วได้ทันที ระดับที่เลือกเป็นสีเขียว

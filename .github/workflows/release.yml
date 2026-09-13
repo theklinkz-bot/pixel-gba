@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with: { submodules: recursive }
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: '17' }
       - uses: android-actions/setup-android@v3
@@ -25,6 +26,8 @@ jobs:
           KEY_ALIAS: ${{ secrets.PIXEL_GBA_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.PIXEL_GBA_KEY_PASSWORD }}
         run: ./gradlew assembleRelease -PpixelGbaKeystore=pixel-gba-release.jks -PpixelGbaStorePassword="$KEYSTORE_PASSWORD" -PpixelGbaKeyAlias="$KEY_ALIAS" -PpixelGbaKeyPassword="$KEY_PASSWORD"
+      - name: Name release APK
+        run: cp app/build/outputs/apk/release/app-release.apk "PixelGBA-${GITHUB_REF_NAME#v}.apk"
       - name: Publish GitHub Release
         env: { GH_TOKEN: '${{ github.token }}' }
-        run: gh release create "${GITHUB_REF_NAME}" app/build/outputs/apk/release/app-release.apk --title "Pixel GBA ${GITHUB_REF_NAME#v}" --generate-notes
+        run: gh release create "${GITHUB_REF_NAME}" "PixelGBA-${GITHUB_REF_NAME#v}.apk" --title "Pixel GBA ${GITHUB_REF_NAME#v}" --generate-notes
