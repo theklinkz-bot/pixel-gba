@@ -434,7 +434,7 @@ public class MainActivity extends Activity {
             else for(int i=0;i<10;i++){RectF r=rects[i];boolean pressed=((touchKeys|hardwareKeys|axisKeys)&masks[i])!=0;int color=pressed?LIME:i==4?LIME:i==5?ORANGE:PANEL;
                 paint.setColor(color);paint.setAlpha(editing?230:(int)(prefs.getInt("opacity",65)*2.55f));c.drawRect(r,paint);paint.setAlpha(255);paint.setColor(pressed?INK:0xff66787a);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(dp(2));c.drawRect(r,paint);paint.setStyle(Paint.Style.FILL);label(c,labels[i],r.centerX(),r.centerY()+dp(5),i>=8?11:18,(i==4||i==5||pressed)?BG:INK);}
             if(prefs.getBoolean("fps",false)){draws++;long now=System.nanoTime();if(now-fpsTime>1000000000L){fps=String.valueOf(Math.round(draws*1e9/(now-fpsTime)));draws=0;fpsTime=now;}label(c,fps+" FPS",w/2,screen.top+dp(16),11,LIME);}
-            paint.setColor(!wide?0xb0000000:BG);c.drawRect(0,0,w,dp(48),paint);
+            paint.setColor(!wide?0xb0000000:(screenEditing||screenSize==screenSizeLimit()-1)?0x880d1b24:BG);c.drawRect(0,0,w,dp(48),paint);
             for(int id=11;id<=15;id++){RectF r=toolbarBounds(id);boolean selected=speed==SPEEDS[id-11];paint.setColor(selected?LIME:PANEL);c.drawRect(r.left+dp(2),dp(8),r.right-dp(2),dp(40),paint);label(c,"▶"+SPEED_LABELS[id-11]+"×",r.centerX(),dp(29),10,selected?BG:MUTED);}
             RectF sizeButton=toolbarBounds(16);
             if(wide)label(c,"▣ "+(screenSize+1),sizeButton.centerX(),dp(29),14,LIME);
