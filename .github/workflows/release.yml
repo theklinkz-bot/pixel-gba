@@ -33,3 +33,12 @@ jobs:
       - name: Publish GitHub Release
         env: { GH_TOKEN: '${{ github.token }}' }
         run: gh release create "${GITHUB_REF_NAME}" "PixelGBA-${GITHUB_REF_NAME#v}.apk" --title "Pixel GBA ${GITHUB_REF_NAME#v}" --generate-notes
+      - name: Upload APK to Google Drive
+        env:
+          GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON }}
+          GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+        run: |
+          test -n "$GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON" || (echo 'Set GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON before publishing' && exit 1)
+          test -n "$GOOGLE_DRIVE_FOLDER_ID" || (echo 'Set GOOGLE_DRIVE_FOLDER_ID before publishing' && exit 1)
+          python -m pip install --disable-pip-version-check google-api-python-client google-auth
+          python tools/upload_google_drive.py "PixelGBA-${GITHUB_REF_NAME#v}.apk"

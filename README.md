@@ -19,6 +19,15 @@
 
 หลังปล่อยรุ่นใหม่ แก้ `update.json` ใน branch `main` ให้ `versionCode`, `versionName`, `apkUrl` และ `changelog` ตรงกับ Release ล่าสุด แล้ว commit ขึ้น GitHub ผู้ใช้จะเห็นอัปเดตเมื่อกดตรวจ OTA ครั้งถัดไป การให้ผู้ใช้ติดตั้ง APK รุ่น debug แล้วพยายาม OTA เป็น release จะถูก Android ปฏิเสธเพราะใบรับรองต่างกัน; แจก debug ใช้สำหรับทดสอบเท่านั้น
 
+### สำรอง APK ขึ้น Google Drive อัตโนมัติ
+
+โฟลเดอร์ `Pixel GBA Releases` ถูกเตรียมไว้ใน Google Drive แล้ว (`https://drive.google.com/drive/folders/143vQabHVv1bx_eAdxny1UI6nCj9DIZKR`) เพื่อให้ workflow คัดลอก APK ทุกครั้งที่สร้าง GitHub Release ให้สร้าง Google Cloud service account เปิดใช้ Drive API สร้าง JSON key แล้วแชร์โฟลเดอร์นี้ให้ email ของ service account เป็น Editor จากนั้นเพิ่ม GitHub Actions secrets สองตัว:
+
+- `GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON` = เนื้อหาไฟล์ JSON key ทั้งไฟล์
+- `GOOGLE_DRIVE_FOLDER_ID` = `143vQabHVv1bx_eAdxny1UI6nCj9DIZKR`
+
+ห้าม commit JSON key ลง repository เมื่อเพิ่ม secrets แล้ว release tag ถัดไปจะอัปโหลดไฟล์ชื่อเดียวกับ APK ไปยังโฟลเดอร์นี้อัตโนมัติ
+
 ## อัปเดต 1.1
 
 แถบด้านบนหน้าเล่นมีไอคอน ▶1× ถึง ▶5× ให้แตะเปลี่ยนความเร็วได้ทันที ระดับที่เลือกเป็นสีเขียว
