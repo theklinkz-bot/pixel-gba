@@ -270,6 +270,7 @@ public class MainActivity extends Activity {
     }
     void screenSettings() {
         LinearLayout l=column();
+        if(game!=null&&game.getWidth()>game.getHeight())game.manualScale=game.screen.width()/240f;
         l.addView(text("แนวนอนเท่านั้น: แตะ DONE แล้วลากมุมกรอบเพื่อขยาย/ย่อ\nลากตรงกลางภาพเพื่อเลื่อนตำแหน่ง\nภาพคงสัดส่วน 3:2 และขยายได้เต็มพื้นที่รวมแถบด้านบน",13,LIME));
         l.addView(button("RESET SCREEN POSITION",()->{manualScreenReset();if(game!=null)game.invalidate();}));
         dialog("SCREEN WORKSHOP",l);
@@ -419,7 +420,7 @@ public class MainActivity extends Activity {
                 if(prefs.getBoolean("integer",false)&&screenSize==0&&scale>=1)scale=(float)Math.floor(scale);
                 sw=240*scale;sh=160*scale;top=screenSize==2?(h-sh)/2:dp(48)+(availableHeight-sh)/2;
             }
-            if(wide&&manualScale>0){scale=manualScale;sw=240*scale;sh=160*scale;top=(h-sh)/2+panY;screen.set((w-sw)/2+panX,top,(w+sw)/2+panX,top+sh);}
+            if(wide&&(manualScale>0||panX!=0||panY!=0)){if(manualScale<=0)manualScale=scale;scale=manualScale;sw=240*scale;sh=160*scale;top=(h-sh)/2+panY;screen.set((w-sw)/2+panX,top,(w+sw)/2+panX,top+sh);}
             else screen.set((w-sw)/2,top,(w+sw)/2,top+sh);
             paint.setColor(0xff43535a);c.drawRect(screen.left-dp(4),screen.top-dp(4),screen.right+dp(4),screen.bottom+dp(4),paint);
             int filter=prefs.getInt("filter",0);paint.setFilterBitmap(filter==1);
