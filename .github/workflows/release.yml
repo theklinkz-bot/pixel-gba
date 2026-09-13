@@ -27,7 +27,7 @@ jobs:
           KEY_PASSWORD: ${{ secrets.PIXEL_GBA_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease -PpixelGbaKeystore=pixel-gba-release.jks -PpixelGbaStorePassword="$KEYSTORE_PASSWORD" -PpixelGbaKeyAlias="$KEY_ALIAS" -PpixelGbaKeyPassword="$KEY_PASSWORD"
+          ./gradlew assembleRelease -PpixelGbaKeystore="$GITHUB_WORKSPACE/pixel-gba-release.jks" -PpixelGbaStorePassword="$KEYSTORE_PASSWORD" -PpixelGbaKeyAlias="$KEY_ALIAS" -PpixelGbaKeyPassword="$KEY_PASSWORD"
       - name: Name release APK
         run: cp app/build/outputs/apk/release/app-release.apk "PixelGBA-${GITHUB_REF_NAME#v}.apk"
       - name: Publish GitHub Release
