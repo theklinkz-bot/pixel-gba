@@ -183,11 +183,12 @@ public class MainActivity extends Activity {
     @Override public void onConfigurationChanged(Configuration c){super.onConfigurationChanged(c);updateImmersive();if(game!=null){game.layoutKey="";game.invalidate();}}
     @Override public void onBackPressed(){if(screenEditing){screenEditing=false;game.invalidate();start();}else if(editing){editing=false;game.saveLayout();game.invalidate();start();}else if(current!=null)menu();else super.onBackPressed();}
     void updateImmersive(){
-        getWindow().getDecorView().setSystemUiVisibility(0);
+        boolean full=game!=null&&gameWide&&prefs.getInt("screenSize",0)==screenSizeLimit()-1;
+        getWindow().getDecorView().setSystemUiVisibility(full?View.SYSTEM_UI_FLAG_FULLSCREEN|View.SYSTEM_UI_FLAG_HIDE_NAVIGATION|View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY:0);
     }
     int screenSizeLimit(){
         boolean wide=game!=null?gameWide:getResources().getConfiguration().orientation==Configuration.ORIENTATION_LANDSCAPE;
-        return wide?7:2;
+        return wide?8:2;
     }
     void toast(String s){Toast.makeText(this,s,Toast.LENGTH_LONG).show();}
     void error(Exception e){toast(e.getMessage()==null?e.toString():e.getMessage());}
@@ -333,7 +334,7 @@ public class MainActivity extends Activity {
             else {float cell=Math.min(dp(48),(w-dp(getHeight()>w?80:136))/5);r.set(dp(4)+(id-11)*cell,0,dp(4)+(id-10)*cell,dp(48));}
             return r;
         }
-        int toolbarHit(float x,float y){for(int id=10;id<=16;id++)if(toolbarBounds(id).contains(x,y))return id;return -1;}
+        int toolbarHit(float x,float y){if(!screenEditing&&gameWide&&prefs.getInt("screenSize",0)==screenSizeLimit()-1)return -1;for(int id=10;id<=16;id++)if(toolbarBounds(id).contains(x,y))return id;return -1;}
         void toolbarAction(int id){
             if(id==10){if(screenEditing){screenEditing=false;start();}else if(editing){saveLayout();editing=false;start();}else menu();}
             else if(id==16){int size=(prefs.getInt("screenSize",0)+1)%screenSizeLimit();prefs.edit().putInt("screenSize",size).apply();updateImmersive();announceForAccessibility(controlName(id));}
@@ -434,14 +435,17 @@ public class MainActivity extends Activity {
             else for(int i=0;i<10;i++){RectF r=rects[i];boolean pressed=((touchKeys|hardwareKeys|axisKeys)&masks[i])!=0;int color=pressed?LIME:i==4?LIME:i==5?ORANGE:PANEL;
                 paint.setColor(color);paint.setAlpha(editing?230:(int)(prefs.getInt("opacity",65)*2.55f));c.drawRect(r,paint);paint.setAlpha(255);paint.setColor(pressed?INK:0xff66787a);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(dp(2));c.drawRect(r,paint);paint.setStyle(Paint.Style.FILL);label(c,labels[i],r.centerX(),r.centerY()+dp(5),i>=8?11:18,(i==4||i==5||pressed)?BG:INK);}
             if(prefs.getBoolean("fps",false)){draws++;long now=System.nanoTime();if(now-fpsTime>1000000000L){fps=String.valueOf(Math.round(draws*1e9/(now-fpsTime)));draws=0;fpsTime=now;}label(c,fps+" FPS",w/2,screen.top+dp(16),11,LIME);}
-            paint.setColor(!wide?0xb0000000:(screenEditing||screenSize==screenSizeLimit()-1)?0x880d1b24:BG);c.drawRect(0,0,w,dp(48),paint);
-            for(int id=11;id<=15;id++){RectF r=toolbarBounds(id);boolean selected=speed==SPEEDS[id-11];paint.setColor(selected?LIME:PANEL);c.drawRect(r.left+dp(2),dp(8),r.right-dp(2),dp(40),paint);label(c,"▶"+SPEED_LABELS[id-11]+"×",r.centerX(),dp(29),10,selected?BG:MUTED);}
-            RectF sizeButton=toolbarBounds(16);
-            if(wide)label(c,"▣ "+(screenSize+1),sizeButton.centerX(),dp(29),14,LIME);
-            else {paint.setColor(0xb0000000);c.drawRoundRect(sizeButton,dp(8),dp(8),paint);paint.setColor(INK);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(dp(2));
-                float x=sizeButton.centerX(),y=sizeButton.centerY(),a=dp(10),b=dp(4);
-                c.drawLines(new float[]{x-a,y-b,x-a,y-a,x-a,y-a,x-b,y-a,x+b,y+a,x+a,y+a,x+a,y+a,x+a,y+b},paint);paint.setStyle(Paint.Style.FILL);label(c,""+(screenSize+1),x,y+dp(4),9,INK);}
-            label(c,editing?"DONE ✓":"MENU ≡",toolbarBounds(10).centerX(),dp(29),12,LIME);
+            boolean immersive=wide&&screenSize==screenSizeLimit()-1;
+            if(!immersive){
+                paint.setColor(!wide?0xb0000000:(screenEditing?0x880d1b24:BG));c.drawRect(0,0,w,dp(48),paint);
+                for(int id=11;id<=15;id++){RectF r=toolbarBounds(id);boolean selected=speed==SPEEDS[id-11];paint.setColor(selected?LIME:PANEL);c.drawRect(r.left+dp(2),dp(8),r.right-dp(2),dp(40),paint);label(c,"▶"+SPEED_LABELS[id-11]+"×",r.centerX(),dp(29),10,selected?BG:MUTED);}
+                RectF sizeButton=toolbarBounds(16);
+                if(wide)label(c,"▣ "+(screenSize+1),sizeButton.centerX(),dp(29),14,LIME);
+                else {paint.setColor(0xb0000000);c.drawRoundRect(sizeButton,dp(8),dp(8),paint);paint.setColor(INK);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(dp(2));
+                    float x=sizeButton.centerX(),y=sizeButton.centerY(),a=dp(10),b=dp(4);
+                    c.drawLines(new float[]{x-a,y-b,x-a,y-a,x-a,y-a,x-b,y-a,x+b,y+a,x+a,y+a,x+a,y+a,x+a,y+b},paint);paint.setStyle(Paint.Style.FILL);label(c,""+(screenSize+1),x,y+dp(4),9,INK);}
+                label(c,editing?"DONE ✓":"MENU ≡",toolbarBounds(10).centerX(),dp(29),12,LIME);
+            }
         }
         @Override public boolean onTouchEvent(MotionEvent e){
             int action=e.getActionMasked(),idx=e.getActionIndex();
