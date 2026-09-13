@@ -2,6 +2,6 @@
   "versionCode": 8,
   "versionName": "1.3.4",
   "apkUrl": "https://github.com/theklinkz-bot/pixel-gba/releases/download/v1.3.4/PixelGBA-1.3.4.apk",
-  "sha256": "",
+  "sha256": "6e09ff63e7cabd495a1282aac81f44adbfed9f43469b6d1d5702c38242ec8c96",
   "changelog": "About screen now displays the installed app version dynamically."
 }
