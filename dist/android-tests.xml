@@ -1,0 +1,10 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuite name="dev.pixelgba.CoreTest" tests="2" failures="0" errors="0" skipped="0" time="1.803" timestamp="2026-09-13T02:22:26" hostname="localhost">
+  <properties>
+    <property name="device" value="PixelGBA_Test(AVD) - 11" />
+    <property name="flavor" value="" />
+    <property name="project" value=":app" />
+  </properties>
+  <testcase name="testRealEmulationCheatsStatesAndInput" classname="dev.pixelgba.CoreTest" time="0.326" />
+  <testcase name="testTouchLayoutPersistenceGraphicsAndLifecycle" classname="dev.pixelgba.UiTest" time="0.716" />
+</testsuite>
