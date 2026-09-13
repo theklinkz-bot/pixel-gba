@@ -28,21 +28,23 @@ public class UiTest extends InstrumentationTestCase {
             int originalW=a.game.getWidth(),originalH=a.game.getHeight();
             for(int orientation=0;orientation<2;orientation++){
                 a.game.layout(0,0,orientation==0?1080:1920,orientation==0?1920:1080);
+                a.gameWide=orientation==1;
                 android.graphics.Bitmap output=android.graphics.Bitmap.createBitmap(a.game.getWidth(),a.game.getHeight(),android.graphics.Bitmap.Config.ARGB_8888);
                 float previous=0;
-                a.prefs.edit().putInt("screenSize",0).putBoolean("fullAspect",false).apply();
-                for(int size=0;size<3;size++){
+                a.prefs.edit().putInt("screenSize",0).apply();
+                int levels=orientation==0?2:8;
+                for(int size=0;size<levels;size++){
                     a.game.draw(new android.graphics.Canvas(output));
+                    a.gameWide=orientation==1;
                     try(FileOutputStream shot=new FileOutputStream(new File(a.getFilesDir(),"v130-"+orientation+"-"+size+".png"))){output.compress(android.graphics.Bitmap.CompressFormat.PNG,100,shot);}catch(IOException ex){throw new AssertionError(ex);}
                     assertTrue("screen does not shrink",a.game.screen.width()>=previous);previous=a.game.screen.width();
-                    if(orientation==0&&size==2)assertEquals("full screen uses device width",(float)a.game.getWidth(),a.game.screen.width(),.001f);
-                    if(orientation==0&&size==2){assertEquals("full mode fills phone height",(float)a.game.getHeight(),a.game.screen.height(),.001f);assertTrue("A overlays game",android.graphics.RectF.intersects(a.game.screen,a.game.rects[4]));}
+                    if(orientation==1&&size==levels-1)assertEquals("landscape full screen uses device width",(float)a.game.getWidth(),a.game.screen.width(),.001f);
+                    if(orientation==1&&size==levels-1){assertEquals("landscape full mode fills phone height",(float)a.game.getHeight(),a.game.screen.height(),.001f);assertTrue("A overlays game",android.graphics.RectF.intersects(a.game.screen,a.game.rects[4]));}
                     else assertEquals("preserves GBA aspect",1.5f,a.game.screen.width()/a.game.screen.height(),.001f);
                     assertTrue("screen inside viewport",a.game.screen.left>=-1&&a.game.screen.right<=a.game.getWidth()+1&&a.game.screen.bottom<=a.game.getHeight()+1);
                     a.game.getAccessibilityNodeProvider().performAction(16,AccessibilityNodeInfo.ACTION_CLICK,null);
-                    assertEquals("size saved and cycles back",(size+1)%3,a.prefs.getInt("screenSize",-1));
+                    assertEquals("size saved and cycles back",(size+1)%levels,a.prefs.getInt("screenSize",-1));
                 }
-                if(orientation==0){a.prefs.edit().putInt("screenSize",2).putBoolean("fullAspect",true).apply();a.game.draw(new android.graphics.Canvas(output));assertEquals("optional full mode preserves aspect",1.5f,a.game.screen.width()/a.game.screen.height(),.001f);a.prefs.edit().putInt("screenSize",0).putBoolean("fullAspect",false).apply();}
                 output.recycle();
             }
             a.game.layout(0,0,originalW,originalH);a.game.layout();
