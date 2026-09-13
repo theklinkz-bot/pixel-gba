@@ -334,7 +334,7 @@ public class MainActivity extends Activity {
             else {float cell=Math.min(dp(48),(w-dp(getHeight()>w?80:136))/5);r.set(dp(4)+(id-11)*cell,0,dp(4)+(id-10)*cell,dp(48));}
             return r;
         }
-        int toolbarHit(float x,float y){if(!screenEditing&&gameWide&&prefs.getInt("screenSize",0)==screenSizeLimit()-1)return -1;for(int id=10;id<=16;id++)if(toolbarBounds(id).contains(x,y))return id;return -1;}
+        int toolbarHit(float x,float y){if(gameWide)return -1;for(int id=10;id<=16;id++)if(toolbarBounds(id).contains(x,y))return id;return -1;}
         void toolbarAction(int id){
             if(id==10){if(screenEditing){screenEditing=false;start();}else if(editing){saveLayout();editing=false;start();}else menu();}
             else if(id==16){int size=(prefs.getInt("screenSize",0)+1)%screenSizeLimit();prefs.edit().putInt("screenSize",size).apply();updateImmersive();announceForAccessibility(controlName(id));}
@@ -436,7 +436,7 @@ public class MainActivity extends Activity {
                 paint.setColor(color);paint.setAlpha(editing?230:(int)(prefs.getInt("opacity",65)*2.55f));c.drawRect(r,paint);paint.setAlpha(255);paint.setColor(pressed?INK:0xff66787a);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(dp(2));c.drawRect(r,paint);paint.setStyle(Paint.Style.FILL);label(c,labels[i],r.centerX(),r.centerY()+dp(5),i>=8?11:18,(i==4||i==5||pressed)?BG:INK);}
             if(prefs.getBoolean("fps",false)){draws++;long now=System.nanoTime();if(now-fpsTime>1000000000L){fps=String.valueOf(Math.round(draws*1e9/(now-fpsTime)));draws=0;fpsTime=now;}label(c,fps+" FPS",w/2,screen.top+dp(16),11,LIME);}
             boolean immersive=wide&&screenSize==screenSizeLimit()-1;
-            if(!immersive){
+            if(!wide){
                 paint.setColor(!wide?0xb0000000:(screenEditing?0x880d1b24:BG));c.drawRect(0,0,w,dp(48),paint);
                 for(int id=11;id<=15;id++){RectF r=toolbarBounds(id);boolean selected=speed==SPEEDS[id-11];paint.setColor(selected?LIME:PANEL);c.drawRect(r.left+dp(2),dp(8),r.right-dp(2),dp(40),paint);label(c,"▶"+SPEED_LABELS[id-11]+"×",r.centerX(),dp(29),10,selected?BG:MUTED);}
                 RectF sizeButton=toolbarBounds(16);
