@@ -16,12 +16,13 @@ public class UiTest extends InstrumentationTestCase {
         getInstrumentation().runOnMainSync(()->a.launch(rom));
         getInstrumentation().waitForIdleSync();
         getInstrumentation().runOnMainSync(()->{
-            a.stop();a.game.layout();
+            a.stop();for(int frame=0;frame<120;frame++)Core.frame(a.bitmap,new short[4096],0,1);a.prefs.edit().remove("layout.portrait").remove("layout.landscape").apply();a.game.layoutKey="";a.game.layout();
             for(int level=1;level<=5;level++){
                 RectF chip=a.game.toolbarBounds(10+level);
                 MotionEvent tap=MotionEvent.obtain(0,0,MotionEvent.ACTION_DOWN,chip.centerX(),chip.centerY(),0);a.game.onTouchEvent(tap);tap.recycle();
-                assertEquals("speed selected directly from playing screen",level,a.speed);
+                assertEquals("speed selected directly from playing screen",MainActivity.SPEEDS[level-1],a.speed);
                 assertTrue(a.game.getAccessibilityNodeProvider().createAccessibilityNodeInfo(10+level).isSelected());
+                a.game.toolbarAction(10+level);assertEquals("tap selected speed returns to normal",1f,a.speed);
             }
             a.speed=1;
             int originalW=a.game.getWidth(),originalH=a.game.getHeight();
@@ -29,15 +30,19 @@ public class UiTest extends InstrumentationTestCase {
                 a.game.layout(0,0,orientation==0?1080:1920,orientation==0?1920:1080);
                 android.graphics.Bitmap output=android.graphics.Bitmap.createBitmap(a.game.getWidth(),a.game.getHeight(),android.graphics.Bitmap.Config.ARGB_8888);
                 float previous=0;
-                a.prefs.edit().putInt("screenSize",0).apply();
+                a.prefs.edit().putInt("screenSize",0).putBoolean("fullAspect",false).apply();
                 for(int size=0;size<3;size++){
                     a.game.draw(new android.graphics.Canvas(output));
-                    assertTrue("three increasing screen sizes",a.game.screen.width()>previous);previous=a.game.screen.width();
-                    assertEquals("preserves GBA aspect",1.5f,a.game.screen.width()/a.game.screen.height(),.001f);
+                    try(FileOutputStream shot=new FileOutputStream(new File(a.getFilesDir(),"v130-"+orientation+"-"+size+".png"))){output.compress(android.graphics.Bitmap.CompressFormat.PNG,100,shot);}catch(IOException ex){throw new AssertionError(ex);}
+                    assertTrue("screen does not shrink",a.game.screen.width()>=previous);previous=a.game.screen.width();
+                    if(orientation==0&&size==2)assertEquals("full screen uses device width",(float)a.game.getWidth(),a.game.screen.width(),.001f);
+                    if(orientation==0&&size==2){assertEquals("full mode fills phone height",(float)a.game.getHeight(),a.game.screen.height(),.001f);assertTrue("A overlays game",android.graphics.RectF.intersects(a.game.screen,a.game.rects[4]));}
+                    else assertEquals("preserves GBA aspect",1.5f,a.game.screen.width()/a.game.screen.height(),.001f);
                     assertTrue("screen inside viewport",a.game.screen.left>=-1&&a.game.screen.right<=a.game.getWidth()+1&&a.game.screen.bottom<=a.game.getHeight()+1);
                     a.game.getAccessibilityNodeProvider().performAction(16,AccessibilityNodeInfo.ACTION_CLICK,null);
                     assertEquals("size saved and cycles back",(size+1)%3,a.prefs.getInt("screenSize",-1));
                 }
+                if(orientation==0){a.prefs.edit().putInt("screenSize",2).putBoolean("fullAspect",true).apply();a.game.draw(new android.graphics.Canvas(output));assertEquals("optional full mode preserves aspect",1.5f,a.game.screen.width()/a.game.screen.height(),.001f);a.prefs.edit().putInt("screenSize",0).putBoolean("fullAspect",false).apply();}
                 output.recycle();
             }
             a.game.layout(0,0,originalW,originalH);a.game.layout();
@@ -57,6 +62,8 @@ public class UiTest extends InstrumentationTestCase {
             assertTrue("drag changed button",a.game.pos[4][0]<old);
             float moved=a.game.pos[4][0];a.game.layoutKey="";a.game.layout();assertEquals("layout restored",moved,a.game.pos[4][0]);
             a.prefs.edit().remove("layout.portrait").remove("layout.landscape").apply();a.game.layoutKey="";a.editing=false;
+            for(int color=0;color<7;color++){a.prefs.edit().putInt("shellColor",color).apply();android.graphics.Bitmap shell=android.graphics.Bitmap.createBitmap(a.game.getWidth(),a.game.getHeight(),android.graphics.Bitmap.Config.ARGB_8888);a.game.draw(new android.graphics.Canvas(shell));shell.recycle();}
+            a.prefs.edit().putInt("shellColor",2).apply();
             for(int filter=0;filter<3;filter++){a.prefs.edit().putInt("filter",filter).putBoolean("color",true).apply();android.graphics.Bitmap target=android.graphics.Bitmap.createBitmap(a.game.getWidth(),a.game.getHeight(),android.graphics.Bitmap.Config.ARGB_8888);a.game.draw(new android.graphics.Canvas(target));target.recycle();}
             a.prefs.edit().putInt("filter",0).putBoolean("color",false).apply();
             assertNotNull("accessible A button",a.game.getAccessibilityNodeProvider().createAccessibilityNodeInfo(4));

@@ -1,7 +1,7 @@
 {
-  "versionCode": 3,
-  "versionName": "1.2",
-  "apkUrl": "https://github.com/theklinkz-bot/pixel-gba/releases/download/v1.2.0/PixelGBA-1.2.0.apk",
-  "sha256": "92aa8bae1ba852dd18045e683b314cd5d79c4efa3504c3e426eec49cd5088645",
-  "changelog": "OTA updates, five speed levels, three screen sizes, and improved controls."
+  "versionCode": 4,
+  "versionName": "1.3.0",
+  "apkUrl": "https://github.com/theklinkz-bot/pixel-gba/releases/download/v1.3.0/PixelGBA-1.3.0.apk",
+  "sha256": "",
+  "changelog": "Portrait translucent shell colors, overlay controls in full-screen mode, five speed levels with audio, and landscape UI preserved."
 }

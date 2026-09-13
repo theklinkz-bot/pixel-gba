@@ -16,9 +16,14 @@ public class CoreTest extends InstrumentationTestCase {
             assertTrue("open original homebrew",Core.open(rom.getPath(),save.getPath()));
             for(int i=0;i<120;i++)Core.frame(bitmap,audio,0,1);
             assertTrue("CPU advances frames",Core.read(0x02000000)>30);
-            int beforeFast=Core.read(0x02000000);
-            for(int i=0;i<10;i++)Core.frame(bitmap,audio,0,5);
-            assertEquals("5x executes fifty frames, not capped at four",50,Core.read(0x02000000)-beforeFast);
+            for(float speed:new float[]{1.5f,2,4,8,16,1}){
+                int beforeFast=Core.read(0x02000000),totalSamples=0;boolean sound=false;
+                for(int i=0;i<20;i++){int count=Core.frame(bitmap,audio,256,speed);assertTrue(count>0&&count<=audio.length);totalSamples+=count;for(int j=0;j<count;j++)sound|=audio[j]!=0;}
+                assertEquals("exact frame progression at "+speed,(int)(20*speed),Core.read(0x02000000)-beforeFast);
+                assertTrue("audible PCM at "+speed,sound);
+                assertTrue("audio duration stays real-time at "+speed,totalSamples>18000&&totalSamples<26000);
+            }
+            assertEquals("reject invalid speed",0,Core.frame(bitmap,audio,0,Float.NaN));
             assertTrue("video is rendered",bitmap.getPixel(80,20)!=bitmap.getPixel(0,0));
             for(int i=0;i<4;i++)Core.frame(bitmap,audio,17,1);
             assertEquals("A + Right simultaneous input",17,Core.read(0x02000002));

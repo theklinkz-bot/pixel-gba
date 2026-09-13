@@ -7,8 +7,11 @@
 #include <mgba-util/vfs.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <math.h>
 
 static struct mCore* core;
+static double frameRemainder;
+static float audioSpeed=1;
 static color_t pixels[240 * 160];
 #define JNI(name) Java_dev_pixelgba_Core_##name
 
@@ -38,17 +41,33 @@ JNIEXPORT jboolean JNICALL JNI(open)(JNIEnv* env, jclass cls, jstring rom, jstri
     if (vf) { size_t size = vf->size(vf); void* data = malloc(size); if (data && vf->read(vf, data, size) == size) core->savedataRestore(core, data, size, false); free(data); vf->close(vf); }
     (*env)->ReleaseStringUTFChars(env, save, sp);
     core->reset(core);
+    frameRemainder=0; audioSpeed=1;
     return JNI_TRUE;
 }
-JNIEXPORT jint JNICALL JNI(frame)(JNIEnv* env, jclass cls, jobject bitmap, jshortArray audio, jint keys, jint frames) {
+JNIEXPORT jint JNICALL JNI(frame)(JNIEnv* env, jclass cls, jobject bitmap, jshortArray audio, jint keys, jfloat speed) {
     if (!core) return 0;
-    int count = 0;
+    if (!isfinite(speed) || speed < 1 || speed > 16) return 0;
+    if (audioSpeed != speed) {
+        // Resample every emulated frame, including fast-forward; no discarded audio frames.
+        blip_set_rates(core->getAudioChannel(core, 0), core->frequency(core), 32768.0 / speed);
+        blip_set_rates(core->getAudioChannel(core, 1), core->frequency(core), 32768.0 / speed);
+        frameRemainder=0; audioSpeed=speed;
+    }
+    frameRemainder += speed;
+    int frames=(int)frameRemainder;
+    frameRemainder -= frames;
+    int count=0;
     short buffer[4096];
+    int capacity=(*env)->GetArrayLength(env,audio)/2;
+    if(capacity>2048)capacity=2048;
     core->setKeys(core, keys & 1023);
-    for (int i = 0; i < frames && i < 5; ++i) {
+    for (int i=0;i<frames;++i) {
         core->runFrame(core);
-        count = blip_read_samples(core->getAudioChannel(core, 0), buffer, 2048, 1);
-        blip_read_samples(core->getAudioChannel(core, 1), buffer + 1, 2048, 1);
+        short chunk[4096];
+        int n=blip_read_samples(core->getAudioChannel(core,0),chunk,2048,1);
+        blip_read_samples(core->getAudioChannel(core,1),chunk+1,2048,1);
+        int keep=n<capacity-count?n:capacity-count;
+        if(keep>0){memcpy(buffer+count*2,chunk,keep*2*sizeof(short));count+=keep;}
     }
     AndroidBitmapInfo info;
     void* output;

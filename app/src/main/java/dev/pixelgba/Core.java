@@ -7,7 +7,7 @@ final class Core {
     // ponytail: one core, serialized calls; multi-session emulation would need native handles.
     static synchronized native boolean open(String rom, String save);
     static synchronized native void close();
-    static synchronized native int frame(Bitmap bitmap, short[] audio, int keys, int frames);
+    static synchronized native int frame(Bitmap bitmap, short[] audio, int keys, float speed);
     static synchronized native boolean state(String path, boolean load);
     static synchronized native boolean flush(String path);
     static synchronized native void clearCheats();

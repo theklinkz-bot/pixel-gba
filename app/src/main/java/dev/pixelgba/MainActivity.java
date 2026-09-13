@@ -26,7 +26,12 @@ public class MainActivity extends Activity {
     String gameId;
     GameView game;
     volatile boolean running;
-    volatile int touchKeys, hardwareKeys, axisKeys, speed=1;
+    volatile int touchKeys, hardwareKeys, axisKeys;
+    volatile float speed=1;
+    static final float[] SPEEDS={1.5f,2,4,8,16};
+    static final String[] SPEED_LABELS={"1.5","2","4","8","16"};
+    static final int[] SHELL_COLORS={0xffe73950,0xffffc928,0xff344de5,0xff27cc73,0xff363943,0xff28c8ed,0xffe9edf3};
+    static final String[] SHELL_NAMES={"RED / แดงใส","YELLOW / เหลืองใส","BLUE / น้ำเงินใส","GREEN / เขียวใส","BLACK / ดำใส","CYAN / ฟ้าใส","WHITE / ขาวใส"};
     Thread worker;
     boolean foreground, overlay, editing;
     final UpdateManager updates = new UpdateManager(this);
@@ -59,6 +64,7 @@ public class MainActivity extends Activity {
     }
     String title(File f) { return prefs.getString("title."+f.getName().replace(".gba",""),"Untitled cartridge"); }
     void library() {
+        getWindow().getDecorView().setSystemUiVisibility(0);
         game=null; current=null; gameId=null; editing=false;
         ScrollView scroll=new ScrollView(this); LinearLayout root=column(); scroll.addView(root); display(scroll);
         root.addView(text("P  /  G     •     HANDHELD CLUB",12,LIME));
@@ -79,7 +85,7 @@ public class MainActivity extends Activity {
         root.addView(button("▶  PIXEL LAB  /  ทดลองปุ่มและเซฟ",()->{try(InputStream in=getAssets().open("pixel-lab.gba")){File f=storeRom(in,"Pixel Lab • Homebrew");launch(f);}catch(Exception e){error(e);}}));
         root.addView(button("SETTINGS  /  ภาพและเสียง",this::settings));
         root.addView(button("↻  CHECK FOR UPDATES  /  ตรวจ OTA",()->updates.check(true)));
-        root.addView(button("ABOUT  /  วิธีใช้งาน",()-> new AlertDialog.Builder(this).setTitle("PIXEL GBA 1.1").setMessage("นำเข้าไฟล์ .gba หรือ ZIP ที่มีเกมเดียว\nระหว่างเล่น แตะ MENU เพื่อใส่สูตร ปรับภาพ จัดปุ่ม และจัดการเซฟ\nจอย: D-pad / left stick, A/B, L/R, Start/Select\nKeyboard: arrows, Z/X, A/S, Enter/Space\n\nPixel Lab: เลื่อนสี่เหลี่ยมด้วย D-pad; A/B เปลี่ยนสี; L/R เปลี่ยนเสียง\n\nPowered by mGBA 0.10.5 (MPL 2.0). Source: github.com/mgba-emu/mgba/tree/0.10.5\nมี license ใน APK; source และวิธี build อยู่ในโปรเจกต์\nไม่รวมเกมเชิงพาณิชย์").setPositiveButton("OK",null).show()));
+        root.addView(button("ABOUT  /  วิธีใช้งาน",()-> new AlertDialog.Builder(this).setTitle("PIXEL GBA 1.3.0").setMessage("นำเข้าไฟล์ .gba หรือ ZIP ที่มีเกมเดียว\nระหว่างเล่น แตะ MENU เพื่อใส่สูตร ปรับภาพ จัดปุ่ม และจัดการเซฟ\nจอย: D-pad / left stick, A/B, L/R, Start/Select\nKeyboard: arrows, Z/X, A/S, Enter/Space\n\nPixel Lab: เลื่อนสี่เหลี่ยมด้วย D-pad; A/B เปลี่ยนสี; L/R เปลี่ยนเสียง\n\nPowered by mGBA 0.10.5 (MPL 2.0). Source: github.com/mgba-emu/mgba/tree/0.10.5\nมี license ใน APK; source และวิธี build อยู่ในโปรเจกต์\nไม่รวมเกมเชิงพาณิชย์").setPositiveButton("OK",null).show()));
         root.addView(text("● OFFLINE READY      mGBA / 0.10.5",11,MUTED));
     }
     void importRom() { Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE); startActivityForResult(i,10); }
@@ -134,7 +140,7 @@ public class MainActivity extends Activity {
         if(!Core.open(file.getPath(),saveFile("sav").getPath())) {Core.close();library();toast("Unable to load this GBA ROM");return;}
         if(saveFile("auto").exists()&&!Core.state(saveFile("auto").getPath(),true))toast("Auto-save could not load; starting cartridge");
         applyCheats(); prefs.edit().putLong("played."+file.getName(),System.currentTimeMillis()).apply();
-        game=new GameView(this);display(game);start();
+        game=new GameView(this);display(game);updateImmersive();start();
     }
     void start() {
         if(running||current==null||!foreground||overlay||editing)return;
@@ -148,7 +154,7 @@ public class MainActivity extends Activity {
                 while(running) {
                     int n; synchronized(bitmap){n=Core.frame(bitmap,audio,touchKeys|hardwareKeys|axisKeys,speed);}
                     if(game!=null)game.postInvalidate();
-                    if(prefs.getBoolean("sound",true)&&speed==1&&n>0)track.write(audio,0,n,AudioTrack.WRITE_NON_BLOCKING);
+                    if(prefs.getBoolean("sound",true)&&n>0){int written=track.write(audio,0,n,AudioTrack.WRITE_BLOCKING);if(written<0)throw new IOException("Audio output failed: "+written);}
                     next+=16742706L;long delay=next-System.nanoTime();
                     if(delay>0) java.util.concurrent.locks.LockSupport.parkNanos(delay);else if(delay < -100000000L)next=System.nanoTime();
                     if(System.nanoTime()-checkpoint>15000000000L){checkpoint=System.nanoTime();try{battery();}catch(Exception e){runOnUiThread(()->error(e));}}
@@ -172,8 +178,12 @@ public class MainActivity extends Activity {
     @Override protected void onResume(){super.onResume();foreground=true;start();}
     @Override protected void onPause(){foreground=false;stop();checkpoint();super.onPause();}
     @Override protected void onDestroy(){stop();Core.close();super.onDestroy();}
-    @Override public void onConfigurationChanged(Configuration c){super.onConfigurationChanged(c);if(game!=null){game.layoutKey="";game.invalidate();}}
+    @Override public void onConfigurationChanged(Configuration c){super.onConfigurationChanged(c);updateImmersive();if(game!=null){game.layoutKey="";game.invalidate();}}
     @Override public void onBackPressed(){if(editing){editing=false;game.saveLayout();game.invalidate();start();}else if(current!=null)menu();else super.onBackPressed();}
+    void updateImmersive(){
+        boolean full=game!=null&&getResources().getConfiguration().orientation==Configuration.ORIENTATION_PORTRAIT&&prefs.getInt("screenSize",0)==2;
+        getWindow().getDecorView().setSystemUiVisibility(full?View.SYSTEM_UI_FLAG_FULLSCREEN|View.SYSTEM_UI_FLAG_HIDE_NAVIGATION|View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY:0);
+    }
     void toast(String s){Toast.makeText(this,s,Toast.LENGTH_LONG).show();}
     void error(Exception e){toast(e.getMessage()==null?e.toString():e.getMessage());}
     void dialog(String title,View body) {
@@ -195,7 +205,7 @@ public class MainActivity extends Activity {
                 case 4:handler.post(this::cheats);break;
                 case 5:handler.post(this::settings);break;
                 case 6:editing=true;handler.post(this::controlSettings);break;
-                case 7:speed=speed%5+1;toast("Speed "+speed+"×"+(speed>1?" • audio muted":""));break;
+                case 7:handler.post(()->new AlertDialog.Builder(this).setTitle("FAST FORWARD").setItems(new String[]{"1× / Normal","1.5×","2×","4×","8×","16×"},(v,i)->{speed=i==0?1:SPEEDS[i-1];if(game!=null)game.invalidate();}).show());break;
                 case 8:checkpoint();startActivityForResult(new Intent(Intent.ACTION_CREATE_DOCUMENT).setType("application/zip").putExtra(Intent.EXTRA_TITLE,"pixelgba-saves.zip"),20);break;
                 case 9:handler.post(()-> new AlertDialog.Builder(this).setTitle("Replace battery save?").setMessage("เลือก .sav ของเกมนี้ จะเริ่มเกมใหม่จากเซฟที่นำเข้า ควร Export backup ก่อน").setNegativeButton("Cancel",null).setPositiveButton("Choose .sav",(a,b)->startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE),21)).show());break;
                 case 10:checkpoint();Core.close();library();break;
@@ -214,11 +224,16 @@ public class MainActivity extends Activity {
         LinearLayout l=column(); l.addView(text("DISPLAY FILTER",13,LIME));
         RadioGroup group=new RadioGroup(this);String[] labels={"PIXEL • crisp nearest-neighbor","SMOOTH • bilinear","CRT • scanlines"};
         for(int i=0;i<3;i++){RadioButton r=new RadioButton(this);r.setText(labels[i]);r.setTextColor(INK);r.setId(100+i);group.addView(r);}group.check(100+prefs.getInt("filter",0));group.setOnCheckedChangeListener((g,id)->{prefs.edit().putInt("filter",id-100).apply();if(game!=null)game.invalidate();});l.addView(group);
+        check(l,"FULL SCREEN • คงสัดส่วน 3:2 (มีขอบดำ)","fullAspect",false);
         check(l,"INTEGER SCALE • พิกเซลขนาดเท่ากัน","integer",false);
         check(l,"COLOR • ลดความจัดของสี","color",false);
         check(l,"SOUND • เปิดเสียง","sound",true);
         check(l,"SHOW FPS • แสดงเฟรมเรต","fps",false);
-        l.addView(text("GBA native: 240 × 160 / 3:2\nFast-forward 2×–5× mutes audio.\nปรับการขยายภาพ ไม่เปลี่ยนความละเอียดภายในเกม",12,MUTED));dialog("PIXEL / DISPLAY",l);
+        l.addView(text("PORTRAIT SHELL / สีตัวเครื่องแนวตั้ง",13,LIME));
+        RadioGroup shells=new RadioGroup(this);
+        for(int i=0;i<SHELL_NAMES.length;i++){RadioButton r=new RadioButton(this);r.setId(200+i);r.setText(SHELL_NAMES[i]);r.setTextColor(INK);shells.addView(r);}
+        shells.check(200+prefs.getInt("shellColor",2));shells.setOnCheckedChangeListener((g,id)->{prefs.edit().putInt("shellColor",id-200).apply();if(game!=null)game.invalidate();});l.addView(shells);
+        l.addView(text("GBA native: 240 × 160 / 3:2\nFast-forward 1.5×–16× keeps audio on.\nปรับการขยายภาพ ไม่เปลี่ยนความละเอียดภายในเกม",12,MUTED));dialog("PIXEL / DISPLAY",l);
     }
     void check(LinearLayout l,String label,String key,boolean fallback){CheckBox c=new CheckBox(this);c.setText(label);c.setTextColor(INK);c.setChecked(prefs.getBoolean(key,fallback));c.setOnCheckedChangeListener((b,v)->{prefs.edit().putBoolean(key,v).apply();if(game!=null)game.invalidate();});l.addView(c);}
     JSONArray cheatList(){try{return new JSONArray(prefs.getString("cheats."+gameId,"[]"));}catch(JSONException e){return new JSONArray();}}
@@ -271,11 +286,16 @@ public class MainActivity extends Activity {
             boolean wide=getWidth()>getHeight();String key=wide?"landscape":"portrait";
             if(!key.equals(layoutKey)){
                 layoutKey=key;
-                float[][] defaults=wide?new float[][]{{.13f,.57f},{.13f,.83f},{.065f,.70f},{.195f,.70f},{.91f,.61f},{.81f,.79f},{.085f,.22f},{.915f,.22f},{.39f,.91f},{.61f,.91f}}:new float[][]{{.22f,.66f},{.22f,.84f},{.10f,.75f},{.34f,.75f},{.85f,.70f},{.66f,.80f},{.13f,.54f},{.87f,.54f},{.41f,.93f},{.61f,.93f}};
+                float[][] defaults=wide?new float[][]{{.13f,.57f},{.13f,.83f},{.065f,.70f},{.195f,.70f},{.91f,.61f},{.81f,.79f},{.085f,.22f},{.915f,.22f},{.39f,.91f},{.61f,.91f}}:new float[][]{{.23f,.77f},{.23f,.95f},{.10f,.84f},{.36f,.84f},{.85f,.79f},{.67f,.91f},{.13f,.65f},{.87f,.65f},{.43f,.65f},{.57f,.65f}};
                 try{JSONArray a=new JSONArray(prefs.getString("layout."+key,"[]"));for(int i=0;i<10;i++){JSONArray p=a.optJSONArray(i);pos[i][0]=p==null?defaults[i][0]:(float)p.getDouble(0);pos[i][1]=p==null?defaults[i][1]:(float)p.getDouble(1);}}catch(JSONException e){for(int i=0;i<10;i++)pos[i]=defaults[i].clone();}
             }
             float size=dp(38+prefs.getInt("size",40)*.34f);
-            for(int i=0;i<10;i++){float w=i>=8?size*1.25f:size,h=i>=6?size*.62f:size;float x=Math.max(w/2,Math.min(getWidth()-w/2,pos[i][0]*getWidth())),y=Math.max(dp(65)+h/2,Math.min(getHeight()-h/2,pos[i][1]*getHeight()));rects[i].set(x-w/2,y-h/2,x+w/2,y+h/2);}
+            if(!wide&&!prefs.contains("layout.portrait")){
+                float arm=Math.min(size*.80f,getWidth()*.13f);
+                pos[0][1]=.84f-arm/getHeight();pos[1][1]=.84f+arm/getHeight();
+                pos[2][0]=.23f-arm/getWidth();pos[3][0]=.23f+arm/getWidth();pos[2][1]=pos[3][1]=.84f;
+            }
+            for(int i=0;i<10;i++){float w=i>=8?(wide?size*1.25f:size*.52f):!wide&&i>=6?size*1.45f:size,h=i>=8&&!wide?size*.52f:i>=6?size*.62f:size;float x=Math.max(w/2,Math.min(getWidth()-w/2,pos[i][0]*getWidth())),y=Math.max(dp(65)+h/2,Math.min(getHeight()-h/2,pos[i][1]*getHeight()));rects[i].set(x-w/2,y-h/2,x+w/2,y+h/2);}
         }
         void saveLayout(){try{JSONArray a=new JSONArray();for(float[] p:pos)a.put(new JSONArray().put((double)p[0]).put((double)p[1]));prefs.edit().putString("layout."+layoutKey,a.toString()).apply();}catch(JSONException e){error(e);}}
         int hitKeys(float x,float y){
@@ -290,21 +310,21 @@ public class MainActivity extends Activity {
             }
             return result;
         }
-        String controlName(int id){return id==10?(editing?"Finish control layout":"Pause and open menu"):id==16?"Screen size: "+new String[]{"Normal","Expanded","Full frame"}[prefs.getInt("screenSize",0)]:id>=11?"Speed "+(id-10)+" times":labels[id]+". Long press to hold or release.";}
+        String controlName(int id){return id==10?(editing?"Finish control layout":"Pause and open menu"):id==16?"Screen size: "+new String[]{"Normal","Expanded","Full screen"}[prefs.getInt("screenSize",0)]:id>=11?"Speed "+SPEED_LABELS[id-11]+" times; tap again for normal speed":labels[id]+". Long press to hold or release.";}
         final RectF[] toolbarRects={new RectF(),new RectF(),new RectF(),new RectF(),new RectF(),new RectF(),new RectF()};
         RectF toolbarBounds(int id){
             float w=getWidth();
             RectF r=toolbarRects[id-10];
             if(id==10)r.set(w-dp(72),0,w,dp(48));
-            else if(id==16)r.set(w-dp(128),0,w-dp(72),dp(48));
-            else {float cell=Math.min(dp(48),(w-dp(136))/5);r.set(dp(4)+(id-11)*cell,0,dp(4)+(id-10)*cell,dp(48));}
+            else if(id==16){if(getHeight()>w){float right=Math.min(w,screen.right);r.set(right-dp(48),Math.max(dp(48),screen.top),right,Math.max(dp(48),screen.top)+dp(48));}else r.set(w-dp(128),0,w-dp(72),dp(48));}
+            else {float cell=Math.min(dp(48),(w-dp(getHeight()>w?80:136))/5);r.set(dp(4)+(id-11)*cell,0,dp(4)+(id-10)*cell,dp(48));}
             return r;
         }
         int toolbarHit(float x,float y){for(int id=10;id<=16;id++)if(toolbarBounds(id).contains(x,y))return id;return -1;}
         void toolbarAction(int id){
             if(id==10){if(editing){saveLayout();editing=false;start();}else menu();}
-            else if(id==16){int size=(prefs.getInt("screenSize",0)+1)%3;prefs.edit().putInt("screenSize",size).apply();announceForAccessibility(controlName(id));}
-            else if(id>=11&&id<=15&&!editing){speed=id-10;announceForAccessibility(controlName(id));}
+            else if(id==16){int size=(prefs.getInt("screenSize",0)+1)%3;prefs.edit().putInt("screenSize",size).apply();updateImmersive();announceForAccessibility(controlName(id));}
+            else if(id>=11&&id<=15&&!editing){speed=speed==SPEEDS[id-11]?1:SPEEDS[id-11];announceForAccessibility(controlName(id));}
             invalidate();
         }
         void accessibleEvent(int id,int type){if(!((AccessibilityManager)getSystemService(ACCESSIBILITY_SERVICE)).isEnabled())return;AccessibilityEvent event=AccessibilityEvent.obtain(type);event.setPackageName(getPackageName());event.setClassName("android.widget.Button");event.setSource(this,id);event.setContentDescription(controlName(id));if(getParent()!=null)getParent().requestSendAccessibilityEvent(this,event);}
@@ -313,7 +333,7 @@ public class MainActivity extends Activity {
                 AccessibilityNodeInfo n=AccessibilityNodeInfo.obtain();n.setPackageName(getPackageName());n.setSource(GameView.this,id);
                 if(id==View.NO_ID){GameView.this.onInitializeAccessibilityNodeInfo(n);for(int i=0;i<=16;i++)n.addChild(GameView.this,i);return n;}
                 if(id<0||id>16)return null;
-                n.setParent(GameView.this);n.setClassName("android.widget.Button");n.setContentDescription(controlName(id));n.setEnabled(true);n.setVisibleToUser(isShown());n.setFocusable(true);n.setClickable(true);n.setLongClickable(id<10);n.setSelected(id>=11&&id<=15&&speed==id-10);
+                n.setParent(GameView.this);n.setClassName("android.widget.Button");n.setContentDescription(controlName(id));n.setEnabled(true);n.setVisibleToUser(isShown());n.setFocusable(true);n.setClickable(true);n.setLongClickable(id<10);n.setSelected(id>=11&&id<=15&&speed==SPEEDS[id-11]);
                 Rect bounds=new Rect();if(id>=10)toolbarBounds(id).roundOut(bounds);else rects[id].roundOut(bounds);n.setBoundsInParent(bounds);int[] offset=new int[2];getLocationOnScreen(offset);bounds.offset(offset[0],offset[1]);n.setBoundsInScreen(bounds);
                 n.addAction(AccessibilityNodeInfo.ACTION_CLICK);if(id<10)n.addAction(AccessibilityNodeInfo.ACTION_LONG_CLICK);n.setAccessibilityFocused(accessibilityFocus==id);n.addAction(accessibilityFocus==id?AccessibilityNodeInfo.ACTION_CLEAR_ACCESSIBILITY_FOCUS:AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS);return n;
             }
@@ -333,6 +353,41 @@ public class MainActivity extends Activity {
             }return super.dispatchHoverEvent(e);
         }
         void label(Canvas c,String t,float x,float y,float size,int color){paint.setColor(color);paint.setTextSize(dp(size));paint.setTypeface(Typeface.MONOSPACE);paint.setTextAlign(Paint.Align.CENTER);paint.setAntiAlias(true);c.drawText(t,x,y,paint);paint.setAntiAlias(false);}
+        void drawShell(Canvas c,float w,float h){
+            float top=h*.58f;
+            int tint=SHELL_COLORS[Math.max(0,Math.min(6,prefs.getInt("shellColor",2)))];
+            paint.setAntiAlias(true);
+            Path shell=new Path();shell.moveTo(0,top);shell.quadTo(w*.5f,top+dp(24),w,top);shell.lineTo(w,h);shell.lineTo(0,h);shell.close();
+            c.save();c.clipPath(shell);
+            paint.setShader(new LinearGradient(0,top,w,h,new int[]{tint,0xff141724,tint},null,Shader.TileMode.CLAMP));c.drawPath(shell,paint);paint.setShader(null);
+            // Translucent resin reveals a deterministic circuit pattern beneath the shell.
+            paint.setColor(0x355dedd8);paint.setStrokeWidth(dp(2));paint.setStyle(Paint.Style.STROKE);
+            for(int i=0;i<9;i++){float x=w*(i+1)/10f,y=top+(h-top)*(i%4+1)/5f;Path trace=new Path();trace.moveTo(x,h);trace.lineTo(x,y+dp(18));trace.lineTo(x+dp(18),y);trace.lineTo(w,y);c.drawPath(trace,paint);c.drawCircle(x,y+dp(18),dp(5),paint);}
+            paint.setStyle(Paint.Style.FILL);
+            for(int i=0;i<4;i++){RectF chip=new RectF(w*(.15f+i*.2f),top+(h-top)*.48f,w*(.25f+i*.2f),top+(h-top)*.64f);paint.setColor(0x44202738);c.drawRoundRect(chip,dp(3),dp(3),paint);}
+            paint.setShader(new LinearGradient(0,top,w,top,new int[]{0x66ffffff,0x08ffffff,0x44ffffff},null,Shader.TileMode.CLAMP));c.drawPath(shell,paint);paint.setShader(null);
+            paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(dp(3));paint.setColor(0x88ffffff);c.drawPath(shell,paint);paint.setStyle(Paint.Style.FILL);c.restore();
+            label(c,"PIXEL GBA",w/2,top-dp(9),14,INK);
+            paint.setColor(0xffa3ffc2);c.drawCircle(w*.07f,top+dp(16),dp(3),paint);
+            for(int i=0;i<5;i++){paint.setColor(0x55000000);c.drawRoundRect(w*.47f+i*dp(6),h-dp(35),w*.47f+i*dp(6)+dp(2),h-dp(13),dp(1),dp(1),paint);}
+        }
+        void drawPortraitControls(Canvas c,boolean full){
+            int alpha=editing?240:full?Math.min(170,(int)(prefs.getInt("opacity",65)*2.55f)):(int)(prefs.getInt("opacity",65)*2.55f);
+            boolean joined=!prefs.contains("layout.portrait");
+            if(joined){RectF up=rects[0],down=rects[1],left=rects[2],right=rects[3];
+                Path cross=new Path();cross.moveTo(up.left,up.top);cross.lineTo(up.right,up.top);cross.lineTo(up.right,right.top);cross.lineTo(right.right,right.top);cross.lineTo(right.right,right.bottom);cross.lineTo(up.right,right.bottom);cross.lineTo(up.right,down.bottom);cross.lineTo(up.left,down.bottom);cross.lineTo(up.left,left.bottom);cross.lineTo(left.left,left.bottom);cross.lineTo(left.left,left.top);cross.lineTo(up.left,left.top);cross.close();
+                paint.setAntiAlias(true);paint.setColor(0xff252330);paint.setAlpha(alpha);c.drawPath(cross,paint);paint.setColor(0xffa7a1b8);paint.setAlpha(alpha);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(dp(3));paint.setStrokeJoin(Paint.Join.ROUND);c.drawPath(cross,paint);paint.setStyle(Paint.Style.FILL);paint.setAlpha(255);
+            }
+            for(int i=0;i<10;i++){RectF r=rects[i];boolean pressed=((touchKeys|hardwareKeys|axisKeys)&masks[i])!=0;
+                if(i>=4||!joined){
+                    paint.setShader(new LinearGradient(r.left,r.top,r.right,r.bottom,new int[]{pressed?0xff849776:0xff565262,0xff24212f},null,Shader.TileMode.CLAMP));paint.setAlpha(alpha);float radius=i==4||i==5||i>=8?r.width()/2:dp(14);c.drawRoundRect(r,radius,radius,paint);paint.setShader(null);
+                    paint.setColor(pressed?LIME:0xffaea6c0);paint.setAlpha(alpha);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(dp(2));c.drawRoundRect(r,radius,radius,paint);paint.setStyle(Paint.Style.FILL);paint.setAlpha(255);
+                }
+                if(i<4&&joined){paint.setColor(pressed?LIME:0xffccc5dc);paint.setStrokeWidth(dp(4));paint.setStrokeCap(Paint.Cap.ROUND);if(i<2)c.drawLine(r.centerX(),r.centerY()-dp(7),r.centerX(),r.centerY()+dp(7),paint);else c.drawLine(r.centerX()-dp(7),r.centerY(),r.centerX()+dp(7),r.centerY(),paint);paint.setStrokeCap(Paint.Cap.BUTT);}
+                else if(i>=8)label(c,labels[i],r.centerX(),r.bottom+dp(13),8,full?INK:0xffc6c1dc);
+                else label(c,labels[i],r.centerX(),r.centerY()+dp(i<6?9:5),i<6?28:14,pressed?LIME:INK);
+            }
+        }
         @Override protected void onDraw(Canvas c){
             super.onDraw(c);c.drawColor(BG);layout();float w=getWidth(),h=getHeight();boolean wide=w>h;
             float areaW=wide?w*.61f:w-dp(28),areaH=wide?h-dp(125):h*.40f;
@@ -345,20 +400,33 @@ public class MainActivity extends Activity {
                 float fullTop=wide?dp(52)+(h-dp(52)-160*full)/2:dp(52);
                 top=top+(fullTop-top)*amount;
             }
+            if(!wide){
+                c.drawColor(Color.BLACK);
+                float availableHeight=h*.55f-dp(54);
+                scale=Math.min(w*(screenSize==0?.88f:screenSize==1?.96f:1f)/240,(screenSize==2?h:availableHeight)/160);
+                if(prefs.getBoolean("integer",false)&&screenSize==0&&scale>=1)scale=(float)Math.floor(scale);
+                sw=240*scale;sh=160*scale;top=screenSize==2?(h-sh)/2:dp(48)+(availableHeight-sh)/2;
+            }
             screen.set((w-sw)/2,top,(w+sw)/2,top+sh);
+            if(!wide&&screenSize==2&&!prefs.getBoolean("fullAspect",false)){screen.set(0,0,w,h);scale=h/160;}
             paint.setColor(0xff43535a);c.drawRect(screen.left-dp(4),screen.top-dp(4),screen.right+dp(4),screen.bottom+dp(4),paint);
             int filter=prefs.getInt("filter",0);paint.setFilterBitmap(filter==1);
             if(prefs.getBoolean("color",false)){paint.setColorFilter(correction);}
             synchronized(bitmap){c.drawBitmap(bitmap,null,screen,paint);}paint.setColorFilter(null);paint.setFilterBitmap(false);
             if(filter==2){paint.setColor(0x40000000);for(int y=0;y<160;y++)c.drawRect(screen.left,screen.top+y*scale,screen.right,screen.top+y*scale+Math.max(1,scale*.25f),paint);}
-            if(!wide)label(c,"●  POWER                 PIXEL ADVANCE",w/2,screen.bottom+dp(24),10,MUTED);
+            if(!wide&&screenSize!=2)drawShell(c,w,h);
             if(editing){paint.setColor(0xff30424b);for(int x=0;x<w;x+=dp(24))for(int y=dp(60);y<h;y+=dp(24))c.drawRect(x,y,x+2,y+2,paint);}
-            for(int i=0;i<10;i++){RectF r=rects[i];boolean pressed=((touchKeys|hardwareKeys|axisKeys)&masks[i])!=0;int color=pressed?LIME:i==4?LIME:i==5?ORANGE:PANEL;
+            if(!wide)drawPortraitControls(c,screenSize==2);
+            else for(int i=0;i<10;i++){RectF r=rects[i];boolean pressed=((touchKeys|hardwareKeys|axisKeys)&masks[i])!=0;int color=pressed?LIME:i==4?LIME:i==5?ORANGE:PANEL;
                 paint.setColor(color);paint.setAlpha(editing?230:(int)(prefs.getInt("opacity",65)*2.55f));c.drawRect(r,paint);paint.setAlpha(255);paint.setColor(pressed?INK:0xff66787a);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(dp(2));c.drawRect(r,paint);paint.setStyle(Paint.Style.FILL);label(c,labels[i],r.centerX(),r.centerY()+dp(5),i>=8?11:18,(i==4||i==5||pressed)?BG:INK);}
             if(prefs.getBoolean("fps",false)){draws++;long now=System.nanoTime();if(now-fpsTime>1000000000L){fps=String.valueOf(Math.round(draws*1e9/(now-fpsTime)));draws=0;fpsTime=now;}label(c,fps+" FPS",w/2,screen.top+dp(16),11,LIME);}
-            paint.setColor(BG);c.drawRect(0,0,w,dp(48),paint);
-            for(int id=11;id<=15;id++){RectF r=toolbarBounds(id);boolean selected=speed==id-10;paint.setColor(selected?LIME:PANEL);c.drawRect(r.left+dp(2),dp(8),r.right-dp(2),dp(40),paint);label(c,"▶"+(id-10)+"×",r.centerX(),dp(29),12,selected?BG:MUTED);}
-            RectF sizeButton=toolbarBounds(16);label(c,"▣ "+(screenSize+1),sizeButton.centerX(),dp(29),14,LIME);
+            paint.setColor(!wide?0xb0000000:BG);c.drawRect(0,0,w,dp(48),paint);
+            for(int id=11;id<=15;id++){RectF r=toolbarBounds(id);boolean selected=speed==SPEEDS[id-11];paint.setColor(selected?LIME:PANEL);c.drawRect(r.left+dp(2),dp(8),r.right-dp(2),dp(40),paint);label(c,"▶"+SPEED_LABELS[id-11]+"×",r.centerX(),dp(29),10,selected?BG:MUTED);}
+            RectF sizeButton=toolbarBounds(16);
+            if(wide)label(c,"▣ "+(screenSize+1),sizeButton.centerX(),dp(29),14,LIME);
+            else {paint.setColor(0xb0000000);c.drawRoundRect(sizeButton,dp(8),dp(8),paint);paint.setColor(INK);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(dp(2));
+                float x=sizeButton.centerX(),y=sizeButton.centerY(),a=dp(10),b=dp(4);
+                c.drawLines(new float[]{x-a,y-b,x-a,y-a,x-a,y-a,x-b,y-a,x+b,y+a,x+a,y+a,x+a,y+a,x+a,y+b},paint);paint.setStyle(Paint.Style.FILL);label(c,""+(screenSize+1),x,y+dp(4),9,INK);}
             label(c,editing?"DONE ✓":"MENU ≡",toolbarBounds(10).centerX(),dp(29),12,LIME);
         }
         @Override public boolean onTouchEvent(MotionEvent e){
@@ -369,7 +437,7 @@ public class MainActivity extends Activity {
                 if(action==MotionEvent.ACTION_MOVE&&drag>=0){int p=e.findPointerIndex(dragPointer);if(p>=0){pos[drag][0]=Math.max(.04f,Math.min(.96f,(e.getX(p)+dx)/getWidth()));pos[drag][1]=Math.max(.14f,Math.min(.96f,(e.getY(p)+dy)/getHeight()));invalidate();}}
                 if(action==MotionEvent.ACTION_UP||action==MotionEvent.ACTION_CANCEL){drag=-1;saveLayout();}return true;
             }
-            int keys=0;if(action!=MotionEvent.ACTION_CANCEL&&action!=MotionEvent.ACTION_UP)for(int p=0;p<e.getPointerCount();p++){if(action==MotionEvent.ACTION_POINTER_UP&&p==idx)continue;if(e.getY(p)>=dp(48))keys|=hitKeys(e.getX(p),e.getY(p));}
+            int keys=0;if(action!=MotionEvent.ACTION_CANCEL&&action!=MotionEvent.ACTION_UP)for(int p=0;p<e.getPointerCount();p++){if(action==MotionEvent.ACTION_POINTER_UP&&p==idx)continue;if(toolbarHit(e.getX(p),e.getY(p))<0)keys|=hitKeys(e.getX(p),e.getY(p));}
             touchKeys=keys;invalidate();return true;
         }
         @Override public boolean performClick(){super.performClick();return true;}
