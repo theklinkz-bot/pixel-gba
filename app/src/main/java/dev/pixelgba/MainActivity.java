@@ -182,12 +182,11 @@ public class MainActivity extends Activity {
     @Override public void onConfigurationChanged(Configuration c){super.onConfigurationChanged(c);updateImmersive();if(game!=null){game.layoutKey="";game.invalidate();}}
     @Override public void onBackPressed(){if(editing){editing=false;game.saveLayout();game.invalidate();start();}else if(current!=null)menu();else super.onBackPressed();}
     void updateImmersive(){
-        boolean full=game!=null&&prefs.getInt("screenSize",0)==screenSizeLimit()-1;
-        getWindow().getDecorView().setSystemUiVisibility(full?View.SYSTEM_UI_FLAG_FULLSCREEN|View.SYSTEM_UI_FLAG_HIDE_NAVIGATION|View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY:0);
+        getWindow().getDecorView().setSystemUiVisibility(0);
     }
     int screenSizeLimit(){
         boolean wide=game!=null?gameWide:getResources().getConfiguration().orientation==Configuration.ORIENTATION_LANDSCAPE;
-        return wide?8:2;
+        return wide?7:2;
     }
     void toast(String s){Toast.makeText(this,s,Toast.LENGTH_LONG).show();}
     void error(Exception e){toast(e.getMessage()==null?e.toString():e.getMessage());}
@@ -283,7 +282,7 @@ public class MainActivity extends Activity {
         final String[] labels={"↑","↓","←","→","A","B","L","R","SELECT","START"};
         final int[] masks={64,128,32,16,1,2,512,256,4,8};
         final float[][] pos=new float[10][2];final RectF[] rects=new RectF[10];
-        String layoutKey="";int drag=-1,dragPointer=-1;float dx,dy;long fpsTime=System.nanoTime();int draws;String fps="60";
+        String layoutKey="";int drag=-1,dragPointer=-1;float dx,dy;int resizeGesture;float manualScale,panX,panY,gesturePanX,gesturePanY;long fpsTime=System.nanoTime();int draws;String fps="60";
         int accessibilityFocus=-1,hover=-1;
         GameView(Context c){super(c);ColorMatrix colors=new ColorMatrix();colors.setSaturation(.72f);correction=new ColorMatrixColorFilter(colors);setFocusable(true);setContentDescription("GBA screen and touch controls. Use Menu for controls and settings.");for(int i=0;i<10;i++)rects[i]=new RectF();}
         void layout(){
@@ -411,8 +410,8 @@ public class MainActivity extends Activity {
                 if(prefs.getBoolean("integer",false)&&screenSize==0&&scale>=1)scale=(float)Math.floor(scale);
                 sw=240*scale;sh=160*scale;top=screenSize==2?(h-sh)/2:dp(48)+(availableHeight-sh)/2;
             }
-            screen.set((w-sw)/2,top,(w+sw)/2,top+sh);
-            if(wide&&screenSize==screenSizeLimit()-1){screen.set(0,0,w,h);scale=h/160;}
+            if(wide&&manualScale>0){scale=manualScale;sw=240*scale;sh=160*scale;top=(h-sh)/2+panY;screen.set((w-sw)/2+panX,top,(w+sw)/2+panX,top+sh);}
+            else screen.set((w-sw)/2,top,(w+sw)/2,top+sh);
             paint.setColor(0xff43535a);c.drawRect(screen.left-dp(4),screen.top-dp(4),screen.right+dp(4),screen.bottom+dp(4),paint);
             int filter=prefs.getInt("filter",0);paint.setFilterBitmap(filter==1);
             if(prefs.getBoolean("color",false)){paint.setColorFilter(correction);}
@@ -436,6 +435,19 @@ public class MainActivity extends Activity {
         @Override public boolean onTouchEvent(MotionEvent e){
             int action=e.getActionMasked(),idx=e.getActionIndex();
             if(action==MotionEvent.ACTION_DOWN||action==MotionEvent.ACTION_POINTER_DOWN){int tool=toolbarHit(e.getX(idx),e.getY(idx));if(tool>=0){toolbarAction(tool);performClick();return true;}}
+            boolean wide=getWidth()>getHeight();
+            if(wide&&!editing){
+                float x=e.getX(idx),y=e.getY(idx),hit=dp(72);
+                if(action==MotionEvent.ACTION_DOWN){
+                    boolean corner=(Math.abs(x-screen.left)<hit||Math.abs(x-screen.right)<hit)&&(Math.abs(y-screen.top)<hit||Math.abs(y-screen.bottom)<hit);
+                    if(corner){resizeGesture=1;manualScale=Math.max(.5f,screen.width()/240);return true;}
+                    if(screen.contains(x,y)){resizeGesture=2;gesturePanX=panX;gesturePanY=panY;dx=x-screen.centerX();dy=y-screen.centerY();return true;}
+                }else if(action==MotionEvent.ACTION_MOVE&&resizeGesture!=0){
+                    if(resizeGesture==1){float s=Math.max(Math.abs(x-screen.centerX())*2/240f,Math.abs(y-screen.centerY())*2/160f);manualScale=Math.max(.5f,Math.min(Math.min(getWidth()/240f,getHeight()/160f),s));}
+                    else {panX=gesturePanX+(x-screen.centerX()-dx);panY=gesturePanY+(y-screen.centerY()-dy);}
+                    invalidate();return true;
+                }else if((action==MotionEvent.ACTION_UP||action==MotionEvent.ACTION_CANCEL)&&resizeGesture!=0){resizeGesture=0;invalidate();return true;}
+            }
             if(editing){
                 if(action==MotionEvent.ACTION_DOWN){for(int i=9;i>=0;i--)if(rects[i].contains(e.getX(),e.getY())){drag=i;dragPointer=e.getPointerId(0);dx=rects[i].centerX()-e.getX();dy=rects[i].centerY()-e.getY();break;}}
                 if(action==MotionEvent.ACTION_MOVE&&drag>=0){int p=e.findPointerIndex(dragPointer);if(p>=0){pos[drag][0]=Math.max(.04f,Math.min(.96f,(e.getX(p)+dx)/getWidth()));pos[drag][1]=Math.max(.14f,Math.min(.96f,(e.getY(p)+dy)/getHeight()));invalidate();}}
