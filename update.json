@@ -2,6 +2,6 @@
   "versionCode": 6,
   "versionName": "1.3.2",
   "apkUrl": "https://github.com/theklinkz-bot/pixel-gba/releases/download/v1.3.2/PixelGBA-1.3.2.apk",
-  "sha256": "",
+  "sha256": "78bd96a99aa3530ffb5b80ff0bf5da2752095053523b895ab45eccb4f66542b9",
   "changelog": "Portrait has two image sizes; landscape has seven image sizes and free pinch-like corner resize and center drag while preserving 3:2 aspect."
 }
