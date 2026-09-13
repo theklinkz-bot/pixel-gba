@@ -34,7 +34,7 @@ public class MainActivity extends Activity {
     static final int[] SHELL_COLORS={0xffe73950,0xffffc928,0xff344de5,0xff27cc73,0xff363943,0xff28c8ed,0xffe9edf3};
     static final String[] SHELL_NAMES={"RED / แดงใส","YELLOW / เหลืองใส","BLUE / น้ำเงินใส","GREEN / เขียวใส","BLACK / ดำใส","CYAN / ฟ้าใส","WHITE / ขาวใส"};
     Thread worker;
-    boolean foreground, overlay, editing;
+    boolean foreground, overlay, editing, screenEditing;
     final UpdateManager updates = new UpdateManager(this);
     int slot=1;
     final Bitmap bitmap=Bitmap.createBitmap(240,160,Bitmap.Config.ARGB_8888);
@@ -180,7 +180,7 @@ public class MainActivity extends Activity {
     @Override protected void onPause(){foreground=false;stop();checkpoint();super.onPause();}
     @Override protected void onDestroy(){stop();Core.close();super.onDestroy();}
     @Override public void onConfigurationChanged(Configuration c){super.onConfigurationChanged(c);updateImmersive();if(game!=null){game.layoutKey="";game.invalidate();}}
-    @Override public void onBackPressed(){if(editing){editing=false;game.saveLayout();game.invalidate();start();}else if(current!=null)menu();else super.onBackPressed();}
+    @Override public void onBackPressed(){if(screenEditing){screenEditing=false;game.invalidate();start();}else if(editing){editing=false;game.saveLayout();game.invalidate();start();}else if(current!=null)menu();else super.onBackPressed();}
     void updateImmersive(){
         getWindow().getDecorView().setSystemUiVisibility(0);
     }
@@ -198,7 +198,7 @@ public class MainActivity extends Activity {
     }
     void menu() {
         if(overlay)return;stop();overlay=true;
-        String[] items={"RESUME  /  เล่นต่อ","QUICK SAVE  /  Slot "+slot,"QUICK LOAD  /  Slot "+slot,"SAVE SLOTS  /  จัดการเซฟ","CHEATS  /  สูตรโกง","GRAPHICS & AUDIO  /  ภาพและเสียง","EDIT CONTROLS  /  จัดตำแหน่งปุ่ม","SPEED  /  "+speed+"×","BACKUP SAVES  /  ส่งออกเซฟ","IMPORT .SAV  /  นำเข้าเซฟ","LIBRARY  /  กลับคลังเกม"};
+        String[] items={"RESUME  /  เล่นต่อ","QUICK SAVE  /  Slot "+slot,"QUICK LOAD  /  Slot "+slot,"SAVE SLOTS  /  จัดการเซฟ","CHEATS  /  สูตรโกง","GRAPHICS & AUDIO  /  ภาพและเสียง","ADJUST SCREEN  /  ปรับขนาดและตำแหน่งจอ","EDIT CONTROLS  /  จัดตำแหน่งปุ่ม","SPEED  /  "+speed+"×","BACKUP SAVES  /  ส่งออกเซฟ","IMPORT .SAV  /  นำเข้าเซฟ","LIBRARY  /  กลับคลังเกม"};
         AlertDialog d=new AlertDialog.Builder(this).setTitle("PAUSED  /  "+title(current)).setItems(items,(di,w)->{
             overlay=false;
             switch(w){
@@ -208,11 +208,12 @@ public class MainActivity extends Activity {
                 case 3:handler.post(this::slots);break;
                 case 4:handler.post(this::cheats);break;
                 case 5:handler.post(this::settings);break;
-                case 6:editing=true;handler.post(this::controlSettings);break;
-                case 7:handler.post(()->new AlertDialog.Builder(this).setTitle("FAST FORWARD").setItems(new String[]{"1× / Normal","1.5×","2×","4×","8×","16×"},(v,i)->{speed=i==0?1:SPEEDS[i-1];if(game!=null)game.invalidate();}).show());break;
-                case 8:checkpoint();startActivityForResult(new Intent(Intent.ACTION_CREATE_DOCUMENT).setType("application/zip").putExtra(Intent.EXTRA_TITLE,"pixelgba-saves.zip"),20);break;
-                case 9:handler.post(()-> new AlertDialog.Builder(this).setTitle("Replace battery save?").setMessage("เลือก .sav ของเกมนี้ จะเริ่มเกมใหม่จากเซฟที่นำเข้า ควร Export backup ก่อน").setNegativeButton("Cancel",null).setPositiveButton("Choose .sav",(a,b)->startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE),21)).show());break;
-                case 10:checkpoint();Core.close();library();break;
+                case 6:screenEditing=true;handler.post(this::screenSettings);break;
+                case 7:editing=true;handler.post(this::controlSettings);break;
+                case 8:handler.post(()->new AlertDialog.Builder(this).setTitle("FAST FORWARD").setItems(new String[]{"1× / Normal","1.5×","2×","4×","8×","16×"},(v,i)->{speed=i==0?1:SPEEDS[i-1];if(game!=null)game.invalidate();}).show());break;
+                case 9:checkpoint();startActivityForResult(new Intent(Intent.ACTION_CREATE_DOCUMENT).setType("application/zip").putExtra(Intent.EXTRA_TITLE,"pixelgba-saves.zip"),20);break;
+                case 10:handler.post(()-> new AlertDialog.Builder(this).setTitle("Replace battery save?").setMessage("เลือก .sav ของเกมนี้ จะเริ่มเกมใหม่จากเซฟที่นำเข้า ควร Export backup ก่อน").setNegativeButton("Cancel",null).setPositiveButton("Choose .sav",(a,b)->startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE),21)).show());break;
+                case 11:checkpoint();Core.close();library();break;
             }
         }).create();d.setOnDismissListener(v->{overlay=false;start();});d.show();
     }
@@ -266,6 +267,13 @@ public class MainActivity extends Activity {
             try{JSONObject c=new JSONObject().put("name",n).put("code",raw).put("type",type.getSelectedItemPosition()).put("enabled",true);list.put(c);prefs.edit().putString("cheats."+gameId,list.toString()).apply();name.setText("");code.setText("");cheatRows(rows,list);toast("Cheat enabled");}catch(JSONException e){error(e);}
         }));dialog("CHEAT CARTRIDGE",l);
     }
+    void screenSettings() {
+        LinearLayout l=column();
+        l.addView(text("แนวนอนเท่านั้น: แตะ DONE แล้วลากมุมกรอบเพื่อขยาย/ย่อ\nลากตรงกลางภาพเพื่อเลื่อนตำแหน่ง\nภาพคงสัดส่วน 3:2 และขยายได้เต็มพื้นที่รวมแถบด้านบน",13,LIME));
+        l.addView(button("RESET SCREEN POSITION",()->{manualScreenReset();if(game!=null)game.invalidate();}));
+        dialog("SCREEN WORKSHOP",l);
+    }
+    void manualScreenReset(){if(game!=null){game.manualScale=0;game.panX=0;game.panY=0;}}
     void controlSettings() {
         LinearLayout l=column();l.addView(text("แตะ DONE แล้วลากปุ่มบนจอ\nแตะ FINISH เพื่อบันทึกตำแหน่ง\nจัดแยกตามแนวตั้ง / แนวนอน",13,LIME));
         l.addView(text("BUTTON SIZE",13,INK));SeekBar size=new SeekBar(this);size.setMax(100);size.setProgress(prefs.getInt("size",40));size.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){public void onProgressChanged(SeekBar s,int p,boolean u){prefs.edit().putInt("size",p).apply();game.invalidate();}public void onStartTrackingTouch(SeekBar s){}public void onStopTrackingTouch(SeekBar s){}});l.addView(size);
@@ -325,7 +333,7 @@ public class MainActivity extends Activity {
         }
         int toolbarHit(float x,float y){for(int id=10;id<=16;id++)if(toolbarBounds(id).contains(x,y))return id;return -1;}
         void toolbarAction(int id){
-            if(id==10){if(editing){saveLayout();editing=false;start();}else menu();}
+            if(id==10){if(screenEditing){screenEditing=false;start();}else if(editing){saveLayout();editing=false;start();}else menu();}
             else if(id==16){int size=(prefs.getInt("screenSize",0)+1)%screenSizeLimit();prefs.edit().putInt("screenSize",size).apply();updateImmersive();announceForAccessibility(controlName(id));}
             else if(id>=11&&id<=15&&!editing){speed=speed==SPEEDS[id-11]?1:SPEEDS[id-11];announceForAccessibility(controlName(id));}
             invalidate();
@@ -398,7 +406,7 @@ public class MainActivity extends Activity {
             float sw=240*scale,sh=160*scale,top=wide?dp(52)+(areaH-sh)/2:dp(65)+(areaH-sh)/2;
             int screenSize=Math.min(prefs.getInt("screenSize",0),screenSizeLimit()-1);
             if(screenSize>0){
-                float full=Math.min(w/240,(h-dp(52))/160),amount=screenSize/(float)(screenSizeLimit()-1);
+                float full=Math.min(w/240,h/160),amount=screenSize/(float)(screenSizeLimit()-1);
                 scale=scale+(full-scale)*amount;sw=240*scale;sh=160*scale;
                 float fullTop=wide?dp(52)+(h-dp(52)-160*full)/2:dp(52);
                 top=top+(fullTop-top)*amount;
@@ -418,7 +426,8 @@ public class MainActivity extends Activity {
             synchronized(bitmap){c.drawBitmap(bitmap,null,screen,paint);}paint.setColorFilter(null);paint.setFilterBitmap(false);
             if(filter==2){paint.setColor(0x40000000);for(int y=0;y<160;y++)c.drawRect(screen.left,screen.top+y*scale,screen.right,screen.top+y*scale+Math.max(1,scale*.25f),paint);}
             if(!wide&&screenSize!=2)drawShell(c,w,h);
-            if(editing){paint.setColor(0xff30424b);for(int x=0;x<w;x+=dp(24))for(int y=dp(60);y<h;y+=dp(24))c.drawRect(x,y,x+2,y+2,paint);}
+            if(editing||screenEditing){paint.setColor(0xff30424b);for(int x=0;x<w;x+=dp(24))for(int y=0;y<h;y+=dp(24))c.drawRect(x,y,x+2,y+2,paint);}
+            if(screenEditing&&wide){paint.setColor(LIME);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(dp(3));c.drawRect(screen,paint);paint.setStyle(Paint.Style.FILL);for(float[] p:new float[][]{{screen.left,screen.top},{screen.right,screen.top},{screen.left,screen.bottom},{screen.right,screen.bottom}})c.drawCircle(p[0],p[1],dp(12),paint);}
             if(!wide)drawPortraitControls(c,false);
             else for(int i=0;i<10;i++){RectF r=rects[i];boolean pressed=((touchKeys|hardwareKeys|axisKeys)&masks[i])!=0;int color=pressed?LIME:i==4?LIME:i==5?ORANGE:PANEL;
                 paint.setColor(color);paint.setAlpha(editing?230:(int)(prefs.getInt("opacity",65)*2.55f));c.drawRect(r,paint);paint.setAlpha(255);paint.setColor(pressed?INK:0xff66787a);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(dp(2));c.drawRect(r,paint);paint.setStyle(Paint.Style.FILL);label(c,labels[i],r.centerX(),r.centerY()+dp(5),i>=8?11:18,(i==4||i==5||pressed)?BG:INK);}
@@ -434,9 +443,9 @@ public class MainActivity extends Activity {
         }
         @Override public boolean onTouchEvent(MotionEvent e){
             int action=e.getActionMasked(),idx=e.getActionIndex();
-            if(action==MotionEvent.ACTION_DOWN||action==MotionEvent.ACTION_POINTER_DOWN){int tool=toolbarHit(e.getX(idx),e.getY(idx));if(tool>=0){toolbarAction(tool);performClick();return true;}}
+            if(action==MotionEvent.ACTION_DOWN||action==MotionEvent.ACTION_POINTER_DOWN){int tool=toolbarHit(e.getX(idx),e.getY(idx));if(tool>=0&&(!screenEditing||tool==10)){toolbarAction(tool);performClick();return true;}}
             boolean wide=getWidth()>getHeight();
-            if(wide&&!editing){
+            if(wide&&screenEditing){
                 float x=e.getX(idx),y=e.getY(idx),hit=dp(72);
                 if(action==MotionEvent.ACTION_DOWN){
                     boolean corner=(Math.abs(x-screen.left)<hit||Math.abs(x-screen.right)<hit)&&(Math.abs(y-screen.top)<hit||Math.abs(y-screen.bottom)<hit);

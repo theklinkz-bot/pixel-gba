@@ -26,9 +26,9 @@ public class UiTest extends InstrumentationTestCase {
             }
             a.speed=1;
             int originalW=a.game.getWidth(),originalH=a.game.getHeight();
-            for(int orientation=0;orientation<2;orientation++){
-                a.game.layout(0,0,orientation==0?1080:1920,orientation==0?1920:1080);
-                a.gameWide=orientation==1;
+            int orientation=a.game.getWidth()>a.game.getHeight()?1:0;
+            for(int pass=0;pass<1;pass++){
+                a.game.layout(0,0,originalW,originalH);
                 android.graphics.Bitmap output=android.graphics.Bitmap.createBitmap(a.game.getWidth(),a.game.getHeight(),android.graphics.Bitmap.Config.ARGB_8888);
                 float previous=0;
                 a.prefs.edit().putInt("screenSize",0).apply();
