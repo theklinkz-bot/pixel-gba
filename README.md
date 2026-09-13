@@ -21,10 +21,12 @@
 
 ### สำรอง APK ขึ้น Google Drive อัตโนมัติ
 
-โฟลเดอร์ `Pixel GBA Releases` ถูกเตรียมไว้ใน Google Drive แล้ว (`https://drive.google.com/drive/folders/143vQabHVv1bx_eAdxny1UI6nCj9DIZKR`) เพื่อให้ workflow คัดลอก APK ทุกครั้งที่สร้าง GitHub Release ให้สร้าง Google Cloud service account เปิดใช้ Drive API สร้าง JSON key แล้วแชร์โฟลเดอร์นี้ให้ email ของ service account เป็น Editor จากนั้นเพิ่ม GitHub Actions secrets สองตัว:
+โฟลเดอร์ `Pixel GBA Releases` ใน Google Drive ใช้เก็บ APK ทุกครั้งที่สร้าง GitHub Release สำหรับ My Drive ส่วนตัวต้องใช้ OAuth ของบัญชี Google (Service Account ไม่มี storage quota สำหรับ My Drive) จากนั้นเพิ่ม GitHub Actions secrets สี่ตัว:
 
-- `GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON` = เนื้อหาไฟล์ JSON key ทั้งไฟล์
-- `GOOGLE_DRIVE_FOLDER_ID` = `143vQabHVv1bx_eAdxny1UI6nCj9DIZKR`
+- `GOOGLE_DRIVE_CLIENT_ID`
+- `GOOGLE_DRIVE_CLIENT_SECRET`
+- `GOOGLE_DRIVE_REFRESH_TOKEN`
+- `GOOGLE_DRIVE_FOLDER_ID` = ID ของโฟลเดอร์ปลายทาง
 
 ห้าม commit JSON key ลง repository เมื่อเพิ่ม secrets แล้ว release tag ถัดไปจะอัปโหลดไฟล์ชื่อเดียวกับ APK ไปยังโฟลเดอร์นี้อัตโนมัติ
 

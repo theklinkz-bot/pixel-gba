@@ -3,6 +3,7 @@ import json
 import os
 import sys
 
+from google.oauth2 import credentials as oauth_credentials
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
@@ -13,11 +14,21 @@ def main() -> None:
         raise SystemExit("usage: upload_google_drive.py APK_PATH")
     apk_path = sys.argv[1]
     folder_id = os.environ["GOOGLE_DRIVE_FOLDER_ID"]
-    service_account_json = os.environ["GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON"]
-    credentials = service_account.Credentials.from_service_account_info(
-        json.loads(service_account_json),
-        scopes=["https://www.googleapis.com/auth/drive.file"],
-    )
+    refresh_token = os.environ.get("GOOGLE_DRIVE_REFRESH_TOKEN")
+    if refresh_token:
+        credentials = oauth_credentials.Credentials(
+            token=None,
+            refresh_token=refresh_token,
+            token_uri="https://oauth2.googleapis.com/token",
+            client_id=os.environ["GOOGLE_DRIVE_CLIENT_ID"],
+            client_secret=os.environ["GOOGLE_DRIVE_CLIENT_SECRET"],
+            scopes=["https://www.googleapis.com/auth/drive.file"],
+        )
+    else:
+        credentials = service_account.Credentials.from_service_account_info(
+            json.loads(os.environ["GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON"]),
+            scopes=["https://www.googleapis.com/auth/drive.file"],
+        )
     drive = build("drive", "v3", credentials=credentials, cache_discovery=False)
     metadata = {"name": os.path.basename(apk_path), "parents": [folder_id]}
     media = MediaFileUpload(apk_path, mimetype="application/vnd.android.package-archive", resumable=True)
