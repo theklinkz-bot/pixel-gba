@@ -2,6 +2,6 @@
   "versionCode": 3,
   "versionName": "1.2",
   "apkUrl": "https://github.com/theklinkz-bot/pixel-gba/releases/download/v1.2.0/PixelGBA-1.2.0.apk",
-  "sha256": "replace-with-release-sha256",
+  "sha256": "92aa8bae1ba852dd18045e683b314cd5d79c4efa3504c3e426eec49cd5088645",
   "changelog": "OTA updates, five speed levels, three screen sizes, and improved controls."
 }
