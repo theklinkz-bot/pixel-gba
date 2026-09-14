@@ -1,7 +1,7 @@
 {
-  "versionCode": 13,
-  "versionName": "1.3.9",
-  "apkUrl": "https://github.com/theklinkz-bot/pixel-gba/releases/download/v1.3.9/PixelGBA-1.3.9.apk",
-  "sha256": "1e9861f75ccc0aea9fb8d36cb9313b950bf0fa7f86ca9bc230622f6365258291",
-  "changelog": "Fullscreen hides notification, status, and navigation bars on app entry; floating transparent speed, screen size, menu, and battery indicator controls."
+  "versionCode": 14,
+  "versionName": "1.3.10",
+  "apkUrl": "https://github.com/theklinkz-bot/pixel-gba/releases/download/v1.3.10/PixelGBA-1.3.10.apk",
+  "sha256": "ce72cb2f7b68673e6d77bf9707d1ee1dccc9a5ca775e56463bd2f38fc4e4c4f8",
+  "changelog": "Restart Game with confirmation and preserved saves; remember manual screen size and position; Ultimate Graphic with Scale2x and smooth scaling."
 }
