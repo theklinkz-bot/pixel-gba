@@ -32,7 +32,7 @@ public class UiTest extends InstrumentationTestCase {
                 android.graphics.Bitmap output=android.graphics.Bitmap.createBitmap(a.game.getWidth(),a.game.getHeight(),android.graphics.Bitmap.Config.ARGB_8888);
                 float previous=0;
                 a.prefs.edit().putInt("screenSize",0).apply();
-                int levels=orientation==0?2:7;
+                int levels=orientation==0?2:8;
                 for(int size=0;size<levels;size++){
                     a.game.draw(new android.graphics.Canvas(output));
                     a.gameWide=orientation==1;

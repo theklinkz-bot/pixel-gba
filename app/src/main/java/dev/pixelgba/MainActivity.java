@@ -156,7 +156,7 @@ public class MainActivity extends Activity {
                 short[] audio=new short[4096];long next=System.nanoTime(), checkpoint=System.nanoTime();
                 while(running) {
                     int n; synchronized(bitmap){n=Core.frame(bitmap,audio,touchKeys|hardwareKeys|axisKeys,speed);}
-                    if(game!=null)game.postInvalidate();
+                    if(game!=null)game.postInvalidateOnAnimation();
                     if(prefs.getBoolean("sound",true)&&n>0){int written=track.write(audio,0,n,AudioTrack.WRITE_BLOCKING);if(written<0)throw new IOException("Audio output failed: "+written);}
                     next+=16742706L;long delay=next-System.nanoTime();
                     if(delay>0) java.util.concurrent.locks.LockSupport.parkNanos(delay);else if(delay < -100000000L)next=System.nanoTime();
@@ -179,7 +179,7 @@ public class MainActivity extends Activity {
     }
     void checkpoint() {if(current!=null)try{saveState("auto");}catch(Exception e){error(e);}}
     @Override protected void onResume(){super.onResume();updateImmersive();foreground=true;start();}
-    @Override protected void onPause(){foreground=false;stop();checkpoint();super.onPause();}
+    @Override protected void onPause(){foreground=false;stop();if(game!=null)game.saveScreen();checkpoint();super.onPause();}
     @Override protected void onDestroy(){stop();Core.close();super.onDestroy();}
     @Override public void onConfigurationChanged(Configuration c){super.onConfigurationChanged(c);updateImmersive();if(game!=null){game.layoutKey="";game.invalidate();}}
     @Override public void onWindowFocusChanged(boolean hasFocus){super.onWindowFocusChanged(hasFocus);if(hasFocus)updateImmersive();}
@@ -201,7 +201,7 @@ public class MainActivity extends Activity {
     }
     void menu() {
         if(overlay)return;stop();overlay=true;
-        String[] items={"RESUME  /  เล่นต่อ","QUICK SAVE  /  Slot "+slot,"QUICK LOAD  /  Slot "+slot,"SAVE SLOTS  /  จัดการเซฟ","CHEATS  /  สูตรโกง","GRAPHICS & AUDIO  /  ภาพและเสียง","ADJUST SCREEN  /  ปรับขนาดและตำแหน่งจอ","EDIT CONTROLS  /  จัดตำแหน่งปุ่ม","SPEED  /  "+speed+"×","BACKUP SAVES  /  ส่งออกเซฟ","IMPORT .SAV  /  นำเข้าเซฟ","LIBRARY  /  กลับคลังเกม"};
+        String[] items={"RESUME  /  เล่นต่อ","QUICK SAVE  /  Slot "+slot,"QUICK LOAD  /  Slot "+slot,"SAVE SLOTS  /  จัดการเซฟ","CHEATS  /  สูตรโกง","GRAPHICS & AUDIO  /  ภาพและเสียง","ADJUST SCREEN  /  ปรับขนาดและตำแหน่งจอ","EDIT CONTROLS  /  จัดตำแหน่งปุ่ม","SPEED  /  "+speed+"×","BACKUP SAVES  /  ส่งออกเซฟ","IMPORT .SAV  /  นำเข้าเซฟ","LIBRARY  /  กลับคลังเกม","RESTART GAME  /  เริ่มเกมใหม่"};
         AlertDialog d=new AlertDialog.Builder(this).setTitle("PAUSED  /  "+title(current)).setItems(items,(di,w)->{
             overlay=false;
             switch(w){
@@ -217,6 +217,7 @@ public class MainActivity extends Activity {
                 case 9:checkpoint();startActivityForResult(new Intent(Intent.ACTION_CREATE_DOCUMENT).setType("application/zip").putExtra(Intent.EXTRA_TITLE,"pixelgba-saves.zip"),20);break;
                 case 10:handler.post(()-> new AlertDialog.Builder(this).setTitle("Replace battery save?").setMessage("เลือก .sav ของเกมนี้ จะเริ่มเกมใหม่จากเซฟที่นำเข้า ควร Export backup ก่อน").setNegativeButton("Cancel",null).setPositiveButton("Choose .sav",(a,b)->startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE),21)).show());break;
                 case 11:checkpoint();Core.close();library();break;
+                case 12:handler.post(this::confirmRestart);break;
             }
         }).create();d.setOnDismissListener(v->{overlay=false;start();});d.show();
     }
@@ -228,14 +229,28 @@ public class MainActivity extends Activity {
             l.addView(button("LOAD ← "+i,()->{slot=s;toast(Core.state(saveFile("slot"+s).getPath(),true)?"Loaded slot "+s:"Slot empty or invalid");}));
         }dialog("SAVE STATION",l);
     }
+    void confirmRestart(){
+        stop();overlay=true;
+        AlertDialog d=new AlertDialog.Builder(this).setTitle("RESTART GAME?").setMessage("เริ่มเกมใหม่จากหน้าเริ่มต้น โดยเก็บเซฟในเกมและ Save Slots ไว้\nความคืบหน้าที่ยังไม่ได้เซฟในเกมจะหาย").setNegativeButton("CANCEL",null).setPositiveButton("RESTART",(v,w)->restartGame()).create();
+        d.setOnDismissListener(v->{overlay=false;start();});d.show();
+    }
+    void restartGame(){
+        stop();
+        try{
+            battery();Core.close();
+            if(!Core.open(current.getPath(),saveFile("sav").getPath())){Core.close();library();throw new IOException("Unable to restart cartridge");}
+            applyCheats();saveState("auto");game.invalidate();
+        }catch(IOException e){error(e);}
+    }
     void settings() {
         LinearLayout l=column(); l.addView(text("DISPLAY FILTER",13,LIME));
-        RadioGroup group=new RadioGroup(this);String[] labels={"PIXEL • crisp nearest-neighbor","SMOOTH • bilinear","CRT • scanlines"};
-        for(int i=0;i<3;i++){RadioButton r=new RadioButton(this);r.setText(labels[i]);r.setTextColor(INK);r.setId(100+i);group.addView(r);}group.check(100+prefs.getInt("filter",0));group.setOnCheckedChangeListener((g,id)->{prefs.edit().putInt("filter",id-100).apply();if(game!=null)game.invalidate();});l.addView(group);
+        RadioGroup group=new RadioGroup(this);String[] labels={"PIXEL • crisp nearest-neighbor","SMOOTH • bilinear","CRT • scanlines","ULTIMATE GRAPHIC • Scale2x + smooth edges"};
+        for(int i=0;i<labels.length;i++){RadioButton r=new RadioButton(this);r.setText(labels[i]);r.setTextColor(INK);r.setId(100+i);group.addView(r);}group.check(100+prefs.getInt("filter",0));group.setOnCheckedChangeListener((g,id)->{prefs.edit().putInt("filter",id-100).apply();if(game!=null)game.invalidate();});l.addView(group);
         check(l,"INTEGER SCALE • พิกเซลขนาดเท่ากัน","integer",false);
         check(l,"COLOR • ลดความจัดของสี","color",false);
         check(l,"SOUND • เปิดเสียง","sound",true);
         check(l,"SHOW FPS • แสดงเฟรมเรต","fps",false);
+        l.addView(text("Ultimate Graphic: เกลี่ยขอบภาพด้วย Scale2x แล้วขยายแบบนุ่ม\nใช้การประมวลผลเพิ่ม หากเครื่องช้าให้เลือก Pixel\nความเร็วเกมและเฟรมเรตต้นฉบับไม่เปลี่ยน",12,MUTED));
         l.addView(text("PORTRAIT SHELL / สีตัวเครื่องแนวตั้ง",13,LIME));
         RadioGroup shells=new RadioGroup(this);
         for(int i=0;i<SHELL_NAMES.length;i++){RadioButton r=new RadioButton(this);r.setId(200+i);r.setText(SHELL_NAMES[i]);r.setTextColor(INK);shells.addView(r);}
@@ -272,12 +287,12 @@ public class MainActivity extends Activity {
     }
     void screenSettings() {
         LinearLayout l=column();
-        if(game!=null&&game.getWidth()>game.getHeight())game.manualScale=game.screen.width()/240f;
+        if(game!=null&&game.getWidth()>game.getHeight()){game.manualScale=game.screen.width()/240f;game.panX=game.screen.centerX()-game.getWidth()/2f;game.panY=game.screen.centerY()-game.getHeight()/2f;game.saveScreen();}
         l.addView(text("แนวนอนเท่านั้น: แตะ DONE แล้วลากมุมกรอบเพื่อขยาย/ย่อ\nลากตรงกลางภาพเพื่อเลื่อนตำแหน่ง\nภาพคงสัดส่วน 3:2 และขยายได้เต็มพื้นที่รวมแถบด้านบน",13,LIME));
         l.addView(button("RESET SCREEN POSITION",()->{manualScreenReset();if(game!=null)game.invalidate();}));
         dialog("SCREEN WORKSHOP",l);
     }
-    void manualScreenReset(){if(game!=null){game.manualScale=0;game.panX=0;game.panY=0;}}
+    void manualScreenReset(){prefs.edit().remove("screen.scale").remove("screen.x").remove("screen.y").apply();if(game!=null){game.manualScale=0;game.panX=0;game.panY=0;}}
     void controlSettings() {
         LinearLayout l=column();l.addView(text("แตะ DONE แล้วลากปุ่มบนจอ\nแตะ FINISH เพื่อบันทึกตำแหน่ง\nจัดแยกตามแนวตั้ง / แนวนอน",13,LIME));
         l.addView(text("BUTTON SIZE",13,INK));SeekBar size=new SeekBar(this);size.setMax(100);size.setProgress(prefs.getInt("size",40));size.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){public void onProgressChanged(SeekBar s,int p,boolean u){prefs.edit().putInt("size",p).apply();game.invalidate();}public void onStartTrackingTouch(SeekBar s){}public void onStopTrackingTouch(SeekBar s){}});l.addView(size);
@@ -290,6 +305,13 @@ public class MainActivity extends Activity {
 
     final class GameView extends View {
         final Paint paint=new Paint(); final RectF screen=new RectF();
+        final int[] sourcePixels=new int[240*160], ultimatePixels=new int[480*320];
+        final Bitmap ultimateBitmap=Bitmap.createBitmap(480,320,Bitmap.Config.ARGB_8888);
+        void saveScreen(){if(getWidth()>getHeight()&&manualScale>0)prefs.edit().putFloat("screen.scale",manualScale/Math.min(getWidth()/240f,getHeight()/160f)).putFloat("screen.x",panX/getWidth()).putFloat("screen.y",panY/getHeight()).apply();}
+        @Override protected void onSizeChanged(int w,int h,int oldw,int oldh){
+            super.onSizeChanged(w,h,oldw,oldh);
+            if(w>h){manualScale=prefs.getFloat("screen.scale",0)*Math.min(w/240f,h/160f);panX=prefs.getFloat("screen.x",0)*w;panY=prefs.getFloat("screen.y",0)*h;}
+        }
         final ColorMatrixColorFilter correction;
         final String[] labels={"↑","↓","←","→","A","B","L","R","SELECT","START"};
         final int[] masks={64,128,32,16,1,2,512,256,4,8};
@@ -338,7 +360,7 @@ public class MainActivity extends Activity {
         int toolbarHit(float x,float y){for(int id=10;id<=16;id++)if(toolbarBounds(id).contains(x,y))return id;return -1;}
         void toolbarAction(int id){
             if(id==10){if(screenEditing){screenEditing=false;start();}else if(editing){saveLayout();editing=false;start();}else menu();}
-            else if(id==16){int size=(prefs.getInt("screenSize",0)+1)%screenSizeLimit();prefs.edit().putInt("screenSize",size).apply();updateImmersive();announceForAccessibility(controlName(id));}
+            else if(id==16){int size=(prefs.getInt("screenSize",0)+1)%screenSizeLimit();if(getWidth()>getHeight())manualScreenReset();prefs.edit().putInt("screenSize",size).apply();updateImmersive();announceForAccessibility(controlName(id));}
             else if(id>=11&&id<=15&&!editing){speed=speed==SPEEDS[id-11]?1:SPEEDS[id-11];announceForAccessibility(controlName(id));}
             invalidate();
         }
@@ -439,9 +461,12 @@ public class MainActivity extends Activity {
             if(wide&&(manualScale>0||panX!=0||panY!=0)){if(manualScale<=0)manualScale=scale;scale=manualScale;sw=240*scale;sh=160*scale;top=(h-sh)/2+panY;screen.set((w-sw)/2+panX,top,(w+sw)/2+panX,top+sh);}
             else screen.set((w-sw)/2,top,(w+sw)/2,top+sh);
             paint.setColor(0xff43535a);c.drawRect(screen.left-dp(4),screen.top-dp(4),screen.right+dp(4),screen.bottom+dp(4),paint);
-            int filter=prefs.getInt("filter",0);paint.setFilterBitmap(filter==1);
+            int filter=prefs.getInt("filter",0);paint.setFilterBitmap(filter==1||filter==3);
             if(prefs.getBoolean("color",false)){paint.setColorFilter(correction);}
-            synchronized(bitmap){c.drawBitmap(bitmap,null,screen,paint);}paint.setColorFilter(null);paint.setFilterBitmap(false);
+            synchronized(bitmap){
+                if(filter==3){bitmap.getPixels(sourcePixels,0,240,0,0,240,160);UltimateFilter.upscale(sourcePixels,240,160,ultimatePixels);ultimateBitmap.setPixels(ultimatePixels,0,480,0,0,480,320);c.drawBitmap(ultimateBitmap,null,screen,paint);}
+                else c.drawBitmap(bitmap,null,screen,paint);
+            }paint.setColorFilter(null);paint.setFilterBitmap(false);
             if(filter==2){paint.setColor(0x40000000);for(int y=0;y<160;y++)c.drawRect(screen.left,screen.top+y*scale,screen.right,screen.top+y*scale+Math.max(1,scale*.25f),paint);}
             if(!wide&&screenSize!=2)drawShell(c,w,h);
             if(editing||screenEditing){paint.setColor(0xff30424b);for(int x=0;x<w;x+=dp(24))for(int y=0;y<h;y+=dp(24))c.drawRect(x,y,x+2,y+2,paint);}
@@ -466,7 +491,7 @@ public class MainActivity extends Activity {
                     if(resizeGesture==1){float s=Math.max(Math.abs(x-screen.centerX())*2/240f,Math.abs(y-screen.centerY())*2/160f);manualScale=Math.max(.5f,Math.min(Math.min(getWidth()/240f,getHeight()/160f),s));}
                     else {panX=gesturePanX+(x-screen.centerX()-dx);panY=gesturePanY+(y-screen.centerY()-dy);}
                     invalidate();return true;
-                }else if((action==MotionEvent.ACTION_UP||action==MotionEvent.ACTION_CANCEL)&&resizeGesture!=0){resizeGesture=0;invalidate();return true;}
+                }else if((action==MotionEvent.ACTION_UP||action==MotionEvent.ACTION_CANCEL)&&resizeGesture!=0){resizeGesture=0;saveScreen();invalidate();return true;}
             }
             if(editing){
                 if(action==MotionEvent.ACTION_DOWN){for(int i=9;i>=0;i--)if(rects[i].contains(e.getX(),e.getY())){drag=i;dragPointer=e.getPointerId(0);dx=rects[i].centerX()-e.getX();dy=rects[i].centerY()-e.getY();break;}}
